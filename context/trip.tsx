@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useState } from "react";
+import React, { createContext, ReactNode, SetStateAction, useContext, useState } from "react";
 
 export type TripContextProps = {
     id: number;
@@ -8,7 +8,9 @@ export type TripContextProps = {
     destination: string;
     vessel_id: number;
     totalFare: number;
+    originalFare: number;
     note?: string;
+    departure_date: string;
     departure_time: string;
     fareChange: number | null;
     cashTendered: number;
@@ -35,7 +37,9 @@ export type TripContextProps = {
     setID: React.Dispatch<React.SetStateAction<number>>;
     setVesselID: React.Dispatch<React.SetStateAction<number>>;
     setTotalFare: React.Dispatch<React.SetStateAction<number>>;
+    setOriginalFare: React.Dispatch<React.SetStateAction<number>>;
     setNote: React.Dispatch<React.SetStateAction<string>>;
+    setDepartureDate: React.Dispatch<SetStateAction<string>>;
     setDepartureTime: React.Dispatch<React.SetStateAction<string>>;
     setFareChange: React.Dispatch<React.SetStateAction<number | null>>;
     setWebCode: React.Dispatch<React.SetStateAction<string>>;
@@ -75,10 +79,12 @@ export const TripProvider = ({ children }: TripProviderProps) => {
     const [code, setCode] = useState('');
     const [mobileCode, setMobileCode] = useState('');
     const [totalFare, setTotalFare] = useState<number>(0);
+    const [originalFare, setOriginalFare] = useState<number | null>(null)
     const [id, setID] = useState<number>(0);
     const [vessel_id, setVesselID] = useState<number>(0);
     const [fareChange, setFareChange] = useState<number | null>(null);
     const [cashTendered, setCashTendered] = useState<number>(0);
+    const [departure_date, setDepartureDate] = useState<string>('');
     const [departure_time, setDepartureTime] = useState<string>('');
     const [note, setNote] = useState<string>('');
     const [isCargoable, setIsCargoable] = useState<number>(0);
@@ -102,14 +108,15 @@ export const TripProvider = ({ children }: TripProviderProps) => {
         setDestination("");
         setVesselID(0);
         setTotalFare(0);
+        setOriginalFare(null)
         setFareChange(null);
         setCashTendered(0);
         setWebCode("");
         setMobileCode("");
         setCode("");
         setRefNumber("");
+        setDepartureDate('');
         setDepartureTime("");
-        setVesselID(null)
         setIsCargoable(0);
         setTripAccom('');
         setBookingId(null);
@@ -126,9 +133,9 @@ export const TripProvider = ({ children }: TripProviderProps) => {
     };
 
     return (
-        <TripContext.Provider value={{ id, vessel, routeID, origin, destination, vessel_id, totalFare, note, departure_time, tripAccom, bookingId, discountId, isDiscounted, couponCode, discountType, discountValue,
+        <TripContext.Provider value={{ id, vessel, routeID, origin, destination, vessel_id, totalFare, originalFare, note, departure_date, departure_time, tripAccom, bookingId, discountId, isDiscounted, couponCode, discountType, discountValue,
                                     fareChange, code, webCode, mobileCode, cashTendered, refNumber, isCargoable, approvedBy, hasScanned, forReschedule, reSchedAll, setDiscountId, setCouponCode, setDiscountType, setDiscountValue,
-                                    setVessel, setID, setRouteID, setOrigin, setDestination, setVesselID, setTotalFare, setNote,setDepartureTime, setHasScanned, setBookingId, setIsDiscounted,
+                                    setVessel, setID, setRouteID, setOrigin, setDestination, setVesselID, setTotalFare, setOriginalFare, setNote, setDepartureDate,setDepartureTime, setHasScanned, setBookingId, setIsDiscounted,
                                     setFareChange, setCode, setWebCode, setMobileCode, setCashTendered, setRefNumber, setIsCargoable, clearTrip, setApprovedBy, setTripAccom, setForReschedule, setReschedAll }}>
             {children}
         </TripContext.Provider>

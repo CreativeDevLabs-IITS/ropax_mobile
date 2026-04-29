@@ -61,7 +61,7 @@ const bookingTypes = [
 ];
 
 export default function ManualBooking() {
-    const { id, setRouteID, setVessel, setID, setOrigin, setDestination, setVesselID, setCode, setWebCode, setDepartureTime, setMobileCode, setIsCargoable } = useTrip();
+    const { id, setRouteID, setVessel, setID, setOrigin, setDestination, setVesselID, setCode, setWebCode, setDepartureTime, setDepartureDate, setMobileCode, setIsCargoable } = useTrip();
     const { passengers, clearPassengers } = usePassengers();
     const { setCargoProperties } = useCargo();
     const { height, width } = useWindowDimensions();
@@ -85,6 +85,9 @@ export default function ManualBooking() {
     const translateY = useRef(new Animated.Value(height + 50)).current;
     const fadeInAnim = useRef(new Animated.Value(0)).current;
 
+    const tripsRef = useRef(trips);
+    useEffect(() => { tripsRef.current = trips; }, [trips]);
+
     useEffect(() => {
         setContentLoading(true);
         const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
@@ -104,15 +107,15 @@ export default function ManualBooking() {
 
         setFormattedDate(queryDate);
         handleFetchTrips(today);
-        handleFetchCargoProps(); // ✅ moved here from handleRefresh
+        handleFetchCargoProps();
     }, [])
 
     useEffect(() => {
-        if (trips && trips.length > 0) {
+        if (!tripsRef.current?.length) {
             const interval = setInterval(handleTimeChecker, 60 * 60 * 1000)
             return () => clearInterval(interval)
         }
-    }, [trips])
+    }, [])
 
     const handleFetchCargoProps = async () => {
         try {
@@ -281,7 +284,7 @@ export default function ManualBooking() {
         }
     }
 
-    const handleSaveTrip = async (vesselName: string, trip_id: number, routeId: number, origin: string, destination: string, mobileCode: string, code: string, web_code: string, departureTime: string, vesselID: number, cargoable: number) => {
+    const handleSaveTrip = useCallback(async (vesselName: string, trip_id: number, routeId: number, origin: string, destination: string, mobileCode: string, code: string, web_code: string, departureTime: string, vesselID: number, cargoable: number, departureDate: string) => {
         setLoading(true);
 
         const stationID = await AsyncStorage.getItem('stationID');
@@ -312,11 +315,16 @@ export default function ManualBooking() {
             setWebCode(web_code);
             setLoading(false);
             setDepartureTime(departureTime);
+            setDepartureDate(departureDate);
             setIsCargoable(cargoable);
 
             router.push('/seatPlan');
         }, 100);
-    }
+    }, [
+        id, passengers, clearPassengers, setVessel, setID, setVesselID, setRouteID,
+        setOrigin, setDestination, setMobileCode, setCode, setWebCode,
+        setDepartureTime, setDepartureDate, setIsCargoable
+    ])
 
     const toggleSheet = () => {
         if (!bottomSheetTripID) {
@@ -472,13 +480,14 @@ export default function ManualBooking() {
                                 <>
                                     {trips.filter(t => !t.hasDeparted).map((trip) => (
                                         <TouchableOpacity
-                                            onPress={() => handleSaveTrip(trip.vessel, trip.trip_id, trip.route_id, trip.route_origin, trip.route_destination, trip.mobile_code, trip.code, trip.web_code, trip.departure_time, trip.vessel_id, trip.isCargoable)}
+                                            onPress={() => handleSaveTrip(trip.vessel, trip.trip_id, trip.route_id, trip.route_origin, trip.route_destination, trip.mobile_code, trip.code, trip.web_code, trip.departure_time, trip.vessel_id, trip.isCargoable, trip.specific_days)}
                                             key={trip.trip_id}
                                             style={{ elevation: 5, backgroundColor: '#fff', borderRadius: 10, marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
                                             <View style={{ height: '100%', borderTopLeftRadius: 10, borderBottomLeftRadius: 10, width: 5, backgroundColor: '#cf2a3a' }} />
                                             <View style={{ width: '78%', paddingHorizontal: 15, paddingVertical: 20 }}>
                                                 <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#cf2a3a' }}>{trip.departure}</Text>
-                                                <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#000' }}>{`${trip.route_origin}  >  ${trip.route_destination} [ ${trip.vessel} ]`}</Text>
+                                                <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#000' }}>{`${trip.route_origin}  >  ${trip.route_destination}`}</Text>
+                                                <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#000' }}>{`[ ${trip.vessel} ]`}</Text>
                                             </View>
                                             <Ionicons name="chevron-forward" size={18} style={{ marginLeft: 30 }} />
                                         </TouchableOpacity>
@@ -490,7 +499,8 @@ export default function ManualBooking() {
                                                 <View key={trip.trip_id} style={{ paddingHorizontal: 15, paddingVertical: 20, backgroundColor: '#fff', opacity: 0.5, borderRadius: 10, marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                                                     <View>
                                                         <Text style={{ fontWeight: 'bold', fontSize: 15, color: '#cf2a3a' }}>{trip.departure}</Text>
-                                                        <Text style={{ fontWeight: 'bold', fontSize: 15, color: '#000' }}>{`${trip.route_origin}  >  ${trip.route_destination} [ ${trip.vessel} ]`}</Text>
+                                                        <Text style={{ fontWeight: 'bold', fontSize: 15, color: '#000' }}>{`${trip.route_origin}  >  ${trip.route_destination}`}</Text>
+                                                        <Text style={{ fontWeight: 'bold', fontSize: 15, color: '#000' }}>{`[ ${trip.vessel} ]`}</Text>
                                                     </View>
                                                     <Ionicons name="chevron-forward" size={18} />
                                                 </View>

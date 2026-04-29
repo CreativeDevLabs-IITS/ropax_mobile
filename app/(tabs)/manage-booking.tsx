@@ -2,7 +2,7 @@ import { FetchManageBookingList } from "@/api/manageBookingList";
 import PreLoader from "@/components/preloader";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Alert, FlatList, Modal, RefreshControl, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -42,6 +42,8 @@ export default function ManageBooking() {
     
     const PassengerLists = passengers.filter((p: any) => p.paxType != 'Infant');
 
+    const searchValueRef = useRef(searchValue);
+
     useFocusEffect(
         useCallback(() => {
             const today = new Date();
@@ -58,7 +60,7 @@ export default function ManageBooking() {
             setLoading(true)
             fetchBooking(PHTimezoneToday, null);
             setFormattedDate(today.toLocaleDateString('en-US', options));
-    
+            setSearchValue('')
         }, [])
     )
 
@@ -67,7 +69,7 @@ export default function ManageBooking() {
             const currentDate = new Date();
             const today = currentDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
     
-            if(today == date && searchValue.length == 0) {
+            if(today == date && searchValueRef.current == '') {
                 setLoading(true)
                 const requestInterval = setInterval(() => fetchBooking(today, null), 3000);
                 return () => clearInterval(requestInterval);
@@ -75,6 +77,7 @@ export default function ManageBooking() {
     
         }, [date, searchValue])
     )
+
     
     const fetchBooking = async (dateString: string, search: string | null) => {
         try {
@@ -164,7 +167,7 @@ export default function ManageBooking() {
                     </View>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 10, color: '#646464' }}>{`${paxDatas.vessel}  |  ${paxDatas.route}  |  ${paxDatas.departureTime} | ${paxDatas.station}`}</Text>
+                    <Text style={{ fontSize: 10, color: '#646464' }}>{`${paxDatas.vessel}  |  ${paxDatas.route}  |  ${paxDatas.departureTime} | ${paxDatas.station ?? ''}`}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, borderColor: bookingStatuses.find(p => p.id == paxDatas.bookingStatus).color ?? 'transparent', backgroundColor: bookingStatuses.find(s => s.id == paxDatas.bookingStatus).bgColor ?? 'transparent', borderWidth: 1, padding: 3, borderRadius: 5 }}>
                         <MaterialCommunityIcons name={bookingStatuses.find(p => p.id == paxDatas.bookingStatus).icon as any} size={14} color={bookingStatuses.find(p => p.id == paxDatas.bookingStatus).color} />
                         <Text style={{ color: bookingStatuses.find(p => p.id == paxDatas.bookingStatus).color ?? 'transparent', fontSize: 10, fontWeight: '800' }}>{bookingStatuses.find(p => p.id == paxDatas.bookingStatus).label ?? '--'}</Text>

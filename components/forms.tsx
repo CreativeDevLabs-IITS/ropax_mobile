@@ -188,6 +188,7 @@ export default function Forms({ errorForm }: FormProps) {
                     passType_id: paxOnList.passenger_type.id,
                     passTypeCode: paxOnList.passenger_type.passenger_types_code,
                     fare: paxFareOnList,
+                    originalFare: paxFareOnList
                 }),
             })
         );
@@ -226,7 +227,8 @@ export default function Forms({ errorForm }: FormProps) {
                                 passType: paxOnList.passenger_type.name,
                                 passType_id: paxOnList.passenger_type.id,
                                 passTypeCode: paxOnList.passenger_type.passenger_types_code,
-                                fare: paxFareOnList
+                                fare: paxFareOnList,
+                                originalFare: paxFareOnList
                             })
                         };
                     })
@@ -248,7 +250,8 @@ export default function Forms({ errorForm }: FormProps) {
                     ...(!isPasses && {
                         passType: '',
                         passType_id: null, passTypeCode: '',
-                        fare: null
+                        fare: null,
+                        originalFare: null
                     })
                 }
             })
@@ -267,7 +270,7 @@ export default function Forms({ errorForm }: FormProps) {
                         index != infantIndex ? inf : {
                             ...inf,
                             pax_id: '', name: '', age: null, nationality: 'Filipino', 
-                            address: '', contact_number: '', fare: null,
+                            address: '', contact_number: '', fare: null, originalFare: null,
                             ...(!isPasses && {
                                 passType: '',
                                 passType_id: null, 
@@ -385,7 +388,7 @@ export default function Forms({ errorForm }: FormProps) {
         );
         setPassengers(prev =>
             prev.map(p => p.id == passengerId ? {
-                ...p, passType: paxType, passType_id: typeID, passTypeCode: paxTypeCode, fare: prop?.fare ?? 0
+                ...p, passType: paxType, passType_id: typeID, passTypeCode: paxTypeCode, fare: prop?.fare ?? 0, originalFare: prop?.fare ?? 0
             } : p)
         );
     }, [paxFares, routeID, vessel_id, setPassengers]);
@@ -472,7 +475,7 @@ export default function Forms({ errorForm }: FormProps) {
                                         <View style={{ borderColor: '#FFC107', backgroundColor: '#ffc10727', borderWidth: 2, borderRadius: 5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15 }}>
                                             <Text style={{ fontSize: 16, fontWeight: '900', color: '#000' }}>₱</Text>
                                             <TextInput
-                                                onChangeText={(text) => updatePassenger(p.id, 'fare', Number(text.replace(/[^0-9.]/g, '')))}
+                                                onChangeText={(text) => {updatePassenger(p.id, 'fare', Number(text.replace(/[^0-9.]/g, ''))); updatePassenger(p.id, 'originalFare', Number(text.replace(/[^0-9.]/g, ''))) }}
                                                 value={String(p?.fare?.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '')}
                                                 keyboardType={'numeric'} placeholder='0.00'
                                                 style={{ fontWeight: '900', textAlign: 'right', fontSize: 20, color: '#000' }}

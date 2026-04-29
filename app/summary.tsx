@@ -55,9 +55,9 @@ export type Discount = {
 
 
 export default function PaymentSummary() {
-    const { passengers } = usePassengers();
-    const { id, bookingId, totalFare, fareChange, webCode, destination, origin, departure_time, vessel, reSchedAll, isDiscounted, couponCode, discountId, discountValue,
-            setDiscountType, setDiscountValue, setIsDiscounted, setCouponCode, setRefNumber, setFareChange, setCashTendered } = useTrip();
+    const { passengers, setPassengers } = usePassengers();
+    const { id, bookingId, totalFare, originalFare, fareChange, webCode, destination, origin, departure_time, vessel, reSchedAll, isDiscounted, couponCode, discountId, discountValue,
+            setTotalFare, setDiscountType, setDiscountValue, setIsDiscounted, setCouponCode, setRefNumber, setFareChange, setCashTendered } = useTrip();
     const { paxCargoProperty } = useCargo();
     const [discounts, setDiscounts] = useState<Discount[]>([]);
     const [loading, setLoading] = useState(false);
@@ -88,10 +88,18 @@ export default function PaymentSummary() {
                 const change = cashTendered - Number(totalFare);
                 setFareChange(change);
             }
+
+            setCashTendered(cashTendered)
         }
-    }, [cashTendered]);
+    }, [cashTendered, totalFare]);
 
     const handleRemoveDiscount = () => {
+        setTotalFare(originalFare)
+
+        setPassengers(prev => prev.map(p => {
+            return {...p, fare: p.originalFare}
+        }))
+
         setIsDiscounted(false);
         setCouponCode('');
         setDiscountType('');
@@ -136,7 +144,7 @@ export default function PaymentSummary() {
             return;
         }
 
-        if((!passengers.some(p => p.passType == 'Passes') && totalFare > cashTendered)) {
+        if((!passengers.some(p => p.passTypeCode == 'P' || p.passType == 'Passes') && totalFare > cashTendered)) {
             setLoading(false);
             Alert.alert('Invalid', 'Cash tendered is less than the total amount due.');
             return;
@@ -154,8 +162,9 @@ export default function PaymentSummary() {
 
         try {
             const trip = { id, totalFare, webCode } as TripContextProps;
+
             if(passengers.length > 0 && passengers.some(p => p.hasScanned != true && p.forResched != true)) {
-                const response = await SaveBooking(trip, passengers, Number(stationID), discountId, discountValue);
+                const response = await SaveBooking(trip, passengers, Number(stationID), discountId, discountValue, cashTendered);
                 
                 if(!response.error) {
                     setRefNumber(response.reference_no);
@@ -166,7 +175,7 @@ export default function PaymentSummary() {
                     });
                 }
             }else if(passengers.length > 0 && passengers.some(p => p.hasScanned == true)){
-                const response = await SaveBookingScan(trip, passengers, Number(stationID), bookingId, discountId, discountValue);
+                const response = await SaveBookingScan(trip, passengers, Number(stationID), bookingId, discountId, discountValue, cashTendered);
                 
                 if(!response.error) {
                     setRefNumber(response.reference_no);
@@ -178,7 +187,7 @@ export default function PaymentSummary() {
                 }
             }else if(passengers.length > 0 && passengers.some(p => p.forResched == true)) {
                 
-                const response = await SaveReschedBooking(trip, passengers, Number(stationID), bookingId, reSchedAll, discountValue);
+                const response = await SaveReschedBooking(trip, passengers, Number(stationID), bookingId, reSchedAll, discountValue, cashTendered);
                 
                 if(!response.error) {
                     setRefNumber(response.reference_no);
@@ -413,13 +422,13 @@ export default function PaymentSummary() {
             {preloader == false && (
                 <View>
                     {isDiscounted == false && passengers.length > 0 && (
-                        <TouchableOpacity onPress={() => setDiscountModal(true)} style={{ width: '95%', alignSelf: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#cf2a3a', paddingVertical: 15, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
+                        <TouchableOpacity disabled={loading} onPress={() => setDiscountModal(true)} style={{ width: '95%', alignSelf: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#cf2a3a', paddingVertical: 15, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
                             <MaterialCommunityIcons name={'tag-multiple'} color={'#cf2a3a'}  size={25}/>
                             <Text style={{ color: '#cf2a3a', fontSize: 16, fontWeight: 'bold' }}>Apply Discount</Text>
                         </TouchableOpacity>
                     )}
                     
-                    <TouchableOpacity onPress={() => handleConfirmation()} style={{ backgroundColor: '#cf2a3a', width: '95%', alignSelf: 'center', borderRadius: 8, paddingVertical: 15 }}>
+                    <TouchableOpacity disabled={loading} onPress={() => handleConfirmation()} style={{ backgroundColor: '#cf2a3a', width: '95%', alignSelf: 'center', borderRadius: 8, paddingVertical: 15 }}>
                         {loading == true ? (
                             <ActivityIndicator size={'small'} color={'#fff'} style={{ alignSelf: 'center' }} />
                         ) : (

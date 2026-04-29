@@ -63,7 +63,6 @@ export default function Expenses() {
     const [updateLoading, setUpdateLoading] = useState(false);
 
     useEffect(() => {
-        console.log('Effect mounted');
         const getDate = new Date();
         const today = getDate.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
         const date = new Date(today);
@@ -78,22 +77,32 @@ export default function Expenses() {
         const fulldate = `${formattedDate}`;
 
         setDate(fulldate);
-        fetchExpenses()
-        handleFetchCategories();
+        handleFetchDependencies()
     }, []);
 
     useFocusEffect(
         useCallback(() => {
-            fetchExpenses();
+            handleFetchDependencies();
             setExpenses([]);
         }, [])
     )
 
-    const fetchExpenses = async () => {
+    const handleFetchDependencies = async () => {
         try {
-            setContentLoading(true);
-            const expensesfetch = await FetchExpenses();
-    
+            const [fetchedCategories, expensesfetch] = await Promise.all([
+                FetchCategories(),
+                FetchExpenses(),
+            ]);
+
+            if(!fetchedCategories.error) {
+                const categories: CategoryProps[] = fetchedCategories.categories.map((c: any) => ({
+                    categoryID: c.id,
+                    name: c.name
+                }))
+
+                setCategories(categories);
+            }
+
             if(!expensesfetch.error) {
                 const expense: ExpenseProps[] = expensesfetch.expenses.map((e: any) => ({
                     id: e.id,
@@ -113,29 +122,12 @@ export default function Expenses() {
                 setTotalAmount(expensesfetch.totalAmount)
                 setFetchedExpenses(expense)
             }
-        }catch(error: any) {
-            Alert.alert('Error', error.message)
-        }finally{
+        }finally {
             setContentLoading(false);
         }
     }
 
-    const handleFetchCategories = async () => {
-        try {
-            const response = await FetchCategories();
 
-            if(!response.error) {
-                const categories: CategoryProps[] = response.categories.map((c: any) => ({
-                    categoryID: c.id,
-                    name: c.name
-                }))
-
-                setCategories(categories);
-            }
-        }catch(error: any) {
-            Alert.alert('Error', error.message);
-        }
-    }
 
     const handleRefresh = () => {
         setRefresh(true);
@@ -155,7 +147,7 @@ export default function Expenses() {
             const fulldate = `${formattedDate}`;
     
             setDate(fulldate);
-            fetchExpenses()
+            handleFetchDependencies()
             setRefresh(false);
         }, 500);
     }
@@ -201,7 +193,7 @@ export default function Expenses() {
                 
                 Alert.alert('Success', saveUpdate.success, [{
                     text: 'Ok',
-                    onPress: () => {fetchExpenses(), setModalVisible(false)}
+                    onPress: () => {handleFetchDependencies(), setModalVisible(false)}
                 }])
             }
         }catch(error: any) {

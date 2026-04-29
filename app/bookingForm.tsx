@@ -13,7 +13,7 @@ const { height, width } = Dimensions.get('screen');
 
 export default function BookingForm() {
     const { passengers, clearPassengers } = usePassengers();
-    const { approvedBy, setTotalFare } = useTrip()
+    const { approvedBy, setTotalFare, setOriginalFare } = useTrip()
     const [saveloading, setSaveLoading] = useState(false);
     const [errorForm, setErrorForm] = useState<(string | number)[]>([]);
     const [year, setYear] = useState('');
@@ -173,11 +173,12 @@ export default function BookingForm() {
             }, 0);
 
             setTotalFare(total);
+            setOriginalFare(total)
 
             router.push('/summary');
             setSaveLoading(false);
         }, 300);
-    }, [passengers, setTotalFare, approvedBy])
+    }, [passengers, setTotalFare, setOriginalFare, approvedBy])
 
 
     return (

@@ -71,6 +71,7 @@ export type PaxInfo = {
     forResched?: boolean;
     paxCargos?: PaxCargos[];
     discount?: Discount | null;
+    cashTendered?: number | null;
 }
 
 
@@ -91,8 +92,8 @@ const tabs = [
 export default function BookingInfo() {
     const { cargoProperties, paxCargoProperty, setPaxCargoProperties } = useCargo();
     const { setPassengers, clearPassengers } = usePassengers();
-    const { setRefNumber, setBookingId, clearTrip, setRouteID, setTotalFare, setVessel, setID, setOrigin, setDestination, setVesselID, setCode, 
-        setWebCode, setDepartureTime, setMobileCode, setIsCargoable, setHasScanned, setTripAccom } = useTrip();
+    const { setRefNumber, setBookingId, clearTrip, setRouteID, setTotalFare, setFareChange, setVessel, setID, setOrigin, setDestination, setVesselID, setCode, 
+        setWebCode, setDepartureTime, setMobileCode, setIsCargoable, setHasScanned, setTripAccom, setCashTendered, setDepartureDate } = useTrip();
     const { bookingId, paxId, refNum } = useLocalSearchParams();
     const [ loading, setLoading ] = useState(true);
     const [ paxInfo, setPaxInfo ] = useState<PaxInfo[]>([]);
@@ -156,7 +157,7 @@ export default function BookingInfo() {
                     nationality: pax.nationality,
                     contactNo: pax.bookings[0].contact_number,
                     tripId: pax.bookings[0].trip_schedule_id,
-                    dateIso: pax.bookings[0].trip_schedule.specific_days,
+                    dateIso: pax.bookings[0].trip_schedule.specific_days[0],
                     departureDate: new Date(pax.bookings.find((c: any) => c.trip_schedule).trip_schedule.specific_days).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
@@ -192,7 +193,8 @@ export default function BookingInfo() {
                     bookingType: pax.bookings[0].type_id,
                     isCargoable: pax.bookings[0].trip_schedule.trip.vessel.is_cargoable,
                     paxCargos: pax.cargos,
-                    discount:  pax.bookings[0]?.discount_redemptions?.[0]?.discount ?? null
+                    discount:  pax.bookings[0]?.discount_redemptions?.[0]?.discount ?? null,
+                    cashTendered: pax.bookings[0]?.passenger_tendered_amount
                 }))
 
                 const cancelPercents: PercentagesProps[] = response.cancellationPercentage.map((percent: any) => ({
@@ -241,7 +243,11 @@ export default function BookingInfo() {
                     }
                 }
 
-                setTotalTripFare(paxData[0]?.discount != null ? finalTotal : totalBeforeDiscount);
+                const totalCargoAmount = paxData.reduce((sum, pax) => {
+                    return sum + (pax.paxCargos?.reduce((cSum, c) => cSum + Number(c?.amount ?? 0), 0) ?? 0);
+                }, 0);
+
+                setTotalTripFare((paxData[0]?.discount != null ? finalTotal : totalBeforeDiscount) + totalCargoAmount);
 
             }
         }catch(error: any) {
@@ -275,7 +281,7 @@ export default function BookingInfo() {
             setPassengers(prev => [...prev, {
                     id: String(pax.id), pax_id: String(pax.id), name: `${pax.last_name}, ${pax.first_name}`, age: pax.age, gender: pax.gender, 
                     nationality: pax.nationality, address: pax.address, contact: pax.contactNo, seatNumber: '', accommodation: pax.accommodation, fare: pax.fare,
-                    accommodationID: pax.accommodationTypeId, passType: pax.passenger_type, passType_id: pax.passengerTypeId, hasScanned: true
+                    accommodationID: pax.accommodationTypeId, passType: pax.passenger_type, passType_id: pax.passengerTypeId, passTypeCode: pax.paxTypeCode, hasScanned: true
                 }])
             }
             
@@ -348,26 +354,72 @@ export default function BookingInfo() {
                 trip: pax.route,
                 fare: pax.fare,
                 bookingType: pax.bookingType
+                
             }));
 
-            setPassengers(paxData);
+            const totalBeforeDiscount = paxInfo.reduce((sum, pax) => sum + Number(pax?.fare ?? 0), 0);
 
+            const discountedTotal = paxInfo.reduce((sum, pax) => {
+                const fare = Number(pax?.fare ?? 0);
+                const discount = pax.discount;
+
+                if (!discount) return sum + fare;
+                if (discount.scope === 'booking_total') return sum + fare;
+
+                if (discount.scope === 'passenger_fare') {
+                    if (discount.discount_type === 'fixed') {
+                        return sum + Math.max(0, fare - Number(discount.fixed_amount));
+                    } else {
+                        const deduction = (fare * discount.percent) / 100;
+                        return sum + Math.max(0, fare - deduction);
+                    }
+                }
+
+                return sum + fare;
+            }, 0);
+
+
+            const bookingDiscount = paxInfo.find(p => p.discount?.scope === 'booking_total')?.discount;
+            let finalTotal = discountedTotal;
+
+            if (bookingDiscount) {
+                if (bookingDiscount.discount_type === 'fixed') {
+                    finalTotal = Math.max(0, discountedTotal - Number(bookingDiscount.fixed_amount));
+                } else {
+                    const deduction = (discountedTotal * bookingDiscount.percent) / 100;
+                    finalTotal = Math.max(0, discountedTotal - deduction);
+                }
+            }
+
+            const totalCargoAmount = paxInfo.reduce((sum, pax) => {
+                return sum + (pax.paxCargos?.reduce((cSum, c) => cSum + Number(c?.amount ?? 0), 0) ?? 0);
+            }, 0);
+
+            const hasDiscount = paxInfo.some(p => p.discount != null);
+            const grandTotal = (hasDiscount ? finalTotal : totalBeforeDiscount) + totalCargoAmount;
+
+            const tendered = paxInfo[0]?.cashTendered != null ? Number(paxInfo[0].cashTendered) : 0;
+
+            setPassengers(paxData);
             setRefNumber(paxInfo[0].referenceNumber);
-            setTotalFare(paxInfo.reduce((sum, passenger) => sum + Number(passenger?.fare), 0))
+            setTotalFare(grandTotal);
+            setCashTendered(tendered);
+            setFareChange(tendered - grandTotal);
             setID(paxInfo[0].tripId);
             setVessel(paxInfo[0].vessel);
             setVesselID(paxInfo[0].vesselId);
             setRouteID(paxInfo[0].routeId);
             setOrigin(paxInfo[0].origin);
-            setDestination(paxInfo[0].destination)
+            setDestination(paxInfo[0].destination);
             setMobileCode(paxInfo[0].mobileCode);
             setWebCode(paxInfo[0].webCode);
             setCode(paxInfo[0].vesselCode);
             setDepartureTime(paxInfo[0].departureTimeISO);
+            setDepartureDate(paxInfo[0].dateIso)
             setIsCargoable(paxInfo[0].isCargoable);
-            
-            setReprintLoading(false)
-            router.push('/generateTicket')
+
+            setReprintLoading(false);
+            router.push('/generateTicket');
         }, 500);
 
     }

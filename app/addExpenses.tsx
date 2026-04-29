@@ -222,7 +222,7 @@ export default function AddExpenses() {
         }finally {
             setScreenLoading(false)
         }
-    }, [trips, categories])
+    }, [])
 
     const dropdownCategory = useMemo(() => {
         return (categories || []).map((c) => ({
@@ -328,7 +328,6 @@ export default function AddExpenses() {
 
     return (
         <View style={{ backgroundColor: '##fdfdfd', position: 'relative', flex: 1, paddingBottom: insets.bottom }}>
-            {/* add category modal */}
             <Modal visible={modal} transparent animationType="fade">
                 <View style={{ backgroundColor: '#00000048', flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <View style={{ height: height / 5, width: width - 40, backgroundColor: '#fff', borderRadius: 10, justifyContent: 'space-between', padding: 15 }}>

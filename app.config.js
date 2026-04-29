@@ -8,7 +8,6 @@ export default {
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "leopardsmobile",
-    owner: "jseloterio",
     userInterfaceStyle: "automatic",
     newArchEnabled: false,
     ios: {
@@ -58,7 +57,7 @@ export default {
     },
     extra: {
       eas: {
-        projectId: "f8862b73-c69c-4f73-ad71-b7f4d78321d5"
+        projectId: "8fc405ac-ccde-41aa-ad07-291f82b8c63b"
       },
       API_URL: process.env.API_URL, 
       API_KEY: process.env.API_KEY,

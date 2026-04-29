@@ -11,7 +11,7 @@ export default function TabsLayout() {
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       <Tabs
         screenOptions={{
-          headerShown: false, // ✅ hides all headers inside tabs
+          headerShown: false,
           tabBarActiveTintColor: '#CF2A3A',
           tabBarStyle: { 
             height: 60 + insets.bottom,

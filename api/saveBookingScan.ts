@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 
 
-export async function SaveBookingScan(trip: TripContextProps, passengers: PassengerProps[], stationID: number, bookingId: number, discountId?: number, discountAmount?: number) {
+export async function SaveBookingScan(trip: TripContextProps, passengers: PassengerProps[], stationID: number, bookingId: number, discountId?: number, discountAmount?: number, tenderedAmount?: number) {
     const extras = Constants.expoConfig?.extra ?? {};
     const API_KEY = extras.API_KEY as string;
     const API_URL = extras.API_URL as string;
@@ -33,6 +33,7 @@ export async function SaveBookingScan(trip: TripContextProps, passengers: Passen
                 web_code: trip.webCode,
                 discountId: discountId,
                 discountAmount: discountAmount,
+                tendered_amount: tenderedAmount,
                 passengers: passengers.map((p) => ({
                     passenger_id: Number(p.id),
                     accommodation_type_id: p.accommodationID ?? null,

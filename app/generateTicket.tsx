@@ -17,7 +17,7 @@ const logo_icon = require('@/assets/images/logo_icon.png');
 const { height, width } = Dimensions.get('window');
 
 export default function TicketGenerator() {
-    const { vessel, mobileCode, origin, destination, cashTendered, fareChange, totalFare, note, departure_time, refNumber, clearTrip } = useTrip();
+    const { vessel, mobileCode, origin, destination, cashTendered, fareChange, totalFare, note, departure_date, departure_time, refNumber, clearTrip } = useTrip();
     const { paxCargoProperty, setPaxCargoProperties } = useCargo();
     const { passengers, clearPassengers } = usePassengers();
     const {connectedDevice, connectedDeviceId, bleManager, setConnectedDevice, setConnectedDeviceId} = useBleManager();
@@ -41,8 +41,15 @@ export default function TicketGenerator() {
     }, [connectedDevice, showDisconnect])
 
     useEffect(() => {
-        const date = new Date();
-        setTripDate(date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }));
+        if (!departure_date || typeof departure_date !== 'string' || departure_date.trim() === '') return;
+
+        const [year, month, day] = departure_date.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        setTripDate(date.toLocaleDateString('en-US', { 
+            month: '2-digit', 
+            day: '2-digit', 
+            year: 'numeric' 
+        }));
 
         if (!departure_time) return;
 
@@ -50,7 +57,7 @@ export default function TicketGenerator() {
         const suffix = hour >= 12 ? 'PM' : 'AM';
         hour = hour % 12 || 12;
         setTime(`${hour}:${minute.toString().padStart(2, '0')} ${suffix}`);
-    }, []);
+    }, [departure_date, departure_time]);
 
     useEffect(() => {
         const reConnect = async () => {
@@ -67,6 +74,13 @@ export default function TicketGenerator() {
 
         reConnect();
     }, [connectedDeviceId]);
+
+    useEffect(() => {
+        return () => {
+            if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+            bleManager?.stopDeviceScan();
+        };
+    }, []);
 
     const requestBlePermissions = async (): Promise<boolean> => {
         if (Platform.OS === 'android') {

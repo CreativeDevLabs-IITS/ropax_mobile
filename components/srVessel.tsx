@@ -29,7 +29,7 @@ export interface SeatProps {
     seatChannel?:  Set<number | string>
     onSeatSelect?: (seat: number, type: string, accomm_id: number) => void;
     seatAvailability?: (hasAvailable: boolean) => void;
-    disabledSeats: string[];
+    disabledSeats?: string[];
     alignItemsOn: string
 }
 
@@ -65,7 +65,7 @@ export const SeatPlan: React.FC<SeatProps> = React.memo(({ start, limit, passeng
     }, [bookedSeats]);
 
     
-    const disabledSeatsSet = new Set(disabledSeats)
+    const disabledSeatsSet = new Set(disabledSeats ?? [])
 
     const hasSeatAvailable = useMemo(() => {
         return items.some(seat => {
@@ -244,7 +244,7 @@ const SRVessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
                 }
     
                 if(!disabledSeats.error) {
-                    setDisabledSeats(disabledSeats.vessel.disabled_seats)
+                    setDisabledSeats(disabledSeats?.vessel?.disabled_seats)
                 }
             }catch(error: any) {
                 Alert.alert('Error', error.message);
