@@ -79,8 +79,8 @@ export default function Forms({ errorForm }: FormProps) {
         passengers.some(p => p.passType == 'Passes' || p.passTypeCode == 'P'),
     [passengers]);
 
-    const scannedInfantPax = useMemo(() =>
-        passengers.filter(p => p.passType == 'Infant' && p.hasScanned == true),
+    const specialInfantPax = useMemo(() =>
+        passengers.filter(p => p.passType == 'Infant' && (p.hasScanned == true || p.forResched == true)),
     [passengers]);
 
     const formattedPaxList = useMemo(() =>
@@ -834,7 +834,7 @@ export default function Forms({ errorForm }: FormProps) {
                             </View>
                         ))}
         
-                        {scannedInfantPax.map(inf => (
+                        {specialInfantPax.map(inf => (
                             <View style={{ padding: 10, backgroundColor: '#fff', elevation: 5, borderRadius: 8, borderWidth: 1, borderColor: '#B3B3B3' }} key={inf.id}>
                                 <Text style={{ fontSize: 20, fontWeight: '900', color: '#cf2a3a', marginBottom: 5 }}>Infant Details</Text>
                                 <View style={{ marginTop: 20 }}>

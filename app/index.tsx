@@ -81,7 +81,7 @@ export default function Login() {
                 <>
                     <StatusBar barStyle={'dark-content'} backgroundColor={'transparent'} translucent />
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} >
-                        <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
+                        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
                             <View style={{ justifyContent: 'center', paddingTop: 300, paddingHorizontal: 20 }}>
                                 <View style={{ flexDirection: 'column', alignItems: 'center', marginBottom: 60, gap: 10, marginTop: -120 }}>
                                     <Image source={logo_icon} style={{ width: 50, height: 49 }} />

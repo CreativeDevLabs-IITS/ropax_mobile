@@ -196,7 +196,7 @@ export default function SeatPlan() {
                     <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', alignSelf: 'center', textAlign: 'center' }}>{vessel}</Text>
                     <Text style={{ textAlign: 'center', color: '#fff', fontSize: 10 }}>Vessel Seat Plan</Text>
                     <View style={{ paddingTop: 10, height: height - 60 }}>
-                        <ScrollView style={{ height }} contentContainerStyle={{ paddingBottom: 20 }}>
+                        <ScrollView style={{ height }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
 
                             {!isLoading && (
                                 <Image source={deck} style={{ opacity: 0.5, width: '105%', height: bgImageHeight, alignSelf: 'center', tintColor: '#ffffff' }} />
@@ -237,7 +237,7 @@ export default function SeatPlan() {
                     <Text style={{ fontSize: 14, fontWeight: "bold", marginLeft: 20, color: '#474747' }}>Seat# selected</Text>
                     <View style={{ paddingHorizontal: 10 }}>
                         <View style={{ height: 90, borderColor: '#B3B3B3', borderWidth: 1, backgroundColor: '#fff', borderRadius: 8, paddingHorizontal: 8, width: '100%', marginTop: 5 }}>
-                            <ScrollView style={{ flex: 1, paddingTop: 10, paddingBottom: 20 }}>
+                            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, paddingTop: 10, paddingBottom: 20 }}>
                                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
                                     {passengers.filter(p => p.passType != 'Infant' && p.passType != 'Passes').map((p) => (
                                         <View key={p.id} style={{ position: 'relative' }}>

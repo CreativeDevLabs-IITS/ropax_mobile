@@ -183,7 +183,7 @@ export default function BookingInfo() {
                     referenceNumber: pax.bookings[0].reference_no,
                     bookingStatus: pax.bookings[0]?.status_id ?? 0,
                     tripStatus: pax.bookings[0].trip_schedule.status,
-                    seatNumber: pax.bookings[0].pivot.seat_no,
+                    seatNumber: pax.bookings[0].pivot?.seat_no ?? 'N/A',
                     passenger_type: pax.passenger_type.name,
                     passengerTypeId: pax.passenger_type.id,
                     paxTypeCode: pax.passenger_type.passenger_types_code,
@@ -539,7 +539,7 @@ export default function BookingInfo() {
                                             <View style={{ flexDirection: 'column', width: '65%' }}>
                                                 <Text style={{ fontSize: 14, fontWeight: '700', color: '#000' }}>{`${pax.first_name} ${pax.last_name}`}</Text>
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                                                    <Text style={{ fontSize: 10, color: '#646464', fontWeight: '600' }}>{pax?.seatNumber != 'N/A' ? `Seat# ${pax?.seatNumber}` : '--'}</Text>
+                                                    <Text style={{ fontSize: 10, color: '#646464', fontWeight: '600' }}>{pax?.seatNumber != 'N/A' ? `Seat# ${pax?.seatNumber}` : 'N/A'}</Text>
                                                     <Text style={{ fontSize: 10, color: '#646464' }}>|</Text>
                                                     <Text style={{ fontSize: 10, color: '#646464', fontWeight: '600' }}>{pax?.passenger_type}</Text>
                                                     <Text style={{ fontSize: 10, color: '#646464' }}>|</Text>

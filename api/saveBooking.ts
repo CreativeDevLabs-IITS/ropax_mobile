@@ -47,7 +47,7 @@ export async function SaveBooking(trip: TripContextProps, passengers: PassengerP
                     fare: p.fare,
 
                     infants: Array.isArray(p.infant) ? p.infant?.map((i) => ({
-                        pax_id: i.pax_id,
+                        pax_id: Number(i.pax_id) ?? null,
                         first_name: i.name.split(',')[1],
                         last_name: i.name.split(',')[0],
                         age: i.age,
@@ -56,7 +56,7 @@ export async function SaveBooking(trip: TripContextProps, passengers: PassengerP
                         nationality: p.nationality ?? '',
                         accommodation_type_id: p.accommodationID,
                         passenger_type_id: i.passType_id,
-                        seat_no: 'N/A',
+                        seat_no: '',
                     })) : [],
 
                     cargos: Array.isArray(p.cargo) ? p.cargo?.map((c) => ({

@@ -165,6 +165,7 @@ export default function PaymentSummary() {
 
             if(passengers.length > 0 && passengers.some(p => p.hasScanned != true && p.forResched != true)) {
                 const response = await SaveBooking(trip, passengers, Number(stationID), discountId, discountValue, cashTendered);
+                console.log(response.error);
                 
                 if(!response.error) {
                     setRefNumber(response.reference_no);

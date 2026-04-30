@@ -42,6 +42,19 @@ export async function SaveReschedBooking(trip: TripContextProps, passengers: Pas
                     seat_no: String(p.seatNumber),
                     fare: p.fare,
 
+                    infants: Array.isArray(p.infant) ? p.infant?.map((i) => ({
+                        pax_id: Number(i.pax_id) ?? null,
+                        first_name: i.name.split(',')[1],
+                        last_name: i.name.split(',')[0],
+                        age: i.age,
+                        gender: i.gender,
+                        address: p.address ?? '',
+                        nationality: p.nationality ?? '',
+                        accommodation_type_id: p.accommodationID,
+                        passenger_type_id: i.passType_id,
+                        seat_no: 'N/A',
+                    })) : [],
+
                     cargos: Array.isArray(p.cargo) ? p.cargo?.map((c) => ({
                         cargo_option_id: c.cargoOptionID,
                         quantity: c.quantity,
