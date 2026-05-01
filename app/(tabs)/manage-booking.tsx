@@ -2,7 +2,7 @@ import { FetchManageBookingList } from "@/api/manageBookingList";
 import PreLoader from "@/components/preloader";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Alert, FlatList, Modal, RefreshControl, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -42,8 +42,6 @@ export default function ManageBooking() {
     
     const PassengerLists = passengers.filter((p: any) => p.paxType != 'Infant');
 
-    const searchValueRef = useRef(searchValue);
-
     useFocusEffect(
         useCallback(() => {
             const today = new Date();
@@ -69,7 +67,7 @@ export default function ManageBooking() {
             const currentDate = new Date();
             const today = currentDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
     
-            if(today == date && searchValueRef.current == '') {
+            if(today == date && searchValue.length == 0) {
                 setLoading(true)
                 const requestInterval = setInterval(() => fetchBooking(today, null), 3000);
                 return () => clearInterval(requestInterval);

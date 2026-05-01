@@ -1,8 +1,10 @@
 import { FetchAccommodations } from '@/api/accommodations';
 import { FetchTotalBookings } from "@/api/totalBookings";
+import L1Vessel from '@/components/L1Vessel';
 import L2Vessel from "@/components/L2Vessel";
 import SeatAccommAlert from '@/components/seatAccommAlert';
 import SRVessel from "@/components/srVessel";
+
 import { usePassengers } from "@/context/passenger";
 import { usePassesType } from "@/context/passes";
 import { useTrip } from "@/context/trip";
@@ -146,8 +148,10 @@ export default function SeatPlan() {
 
 
     const vesselComponent = useMemo(() => {
-        return vessel == 'Mbca Leopards Sea Runner' || vessel == 'Sea Runner'
+        return vessel.toLowerCase() == 'mbca leopards sea runner' || vessel.toLowerCase() == 'sea runner'
             ? <SRVessel onSeatSelect={handleSeatSelect} accommodations={accommodations} seatAvailability={setHasAvailableSeat} setParentLoading={setIsLoading} />
+            : vessel.toLowerCase() == 'mv leopards 1' || vessel.toLowerCase() == 'leopards 1' 
+            ? <L1Vessel onSeatSelect={handleSeatSelect} accommodations={accommodations} seatAvailability={setHasAvailableSeat} setParentLoading={setIsLoading} />
             : <L2Vessel onSeatSelect={handleSeatSelect} accommodations={accommodations} seatAvailability={setHasAvailableSeat} setParentLoading={setIsLoading} />
     }, [vessel, handleSeatSelect, accommodations]);
 

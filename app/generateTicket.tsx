@@ -190,7 +190,7 @@ export default function TicketGenerator() {
         const fontNormal = () => push(GS, 0x21, 0x00);
         const fontTall = () => push(GS, 0x21, 0x01);
 
-        push(ESC, 0x40); // ESC @ — reset printer
+        push(ESC, 0x40);
 
         alignCenter();
         boldOn();
@@ -216,7 +216,7 @@ export default function TicketGenerator() {
 
         println(
             padRight('Vessel:', 16) +
-            padLeft(`${vessel}`, 16)
+            padLeft(`${vessel}`, 12)
         )
         println(
             padRight('Trip Date:', 16) +
@@ -252,28 +252,88 @@ export default function TicketGenerator() {
         
         alignLeft();
         if (passengers.length > 0) {
-            println(
-                padRight('Name', 10) +
-                padRight('Type', 7) +
-                padRight('Seat', 5) +
-                padLeft('Fare', COL_FARE)
+            const bClass = passengers.filter(p =>
+                p?.accommodation == 'Business Class' ||
+                p?.accommodation == 'B-Class' ||
+                p?.accommodation == 'B Class'
             );
-            println('--------------------------------');
+            if (bClass.length > 0) {
+                boldOn(); println('B-Class:'); boldOff();
+                println('--------------------------------');
+                bClass.forEach(p => {
+                    const nameParts = p.name?.split(',') ?? [];
+                    const lastName  = nameParts[0]?.trim() ?? '';
+                    const firstInit = nameParts[1]?.trim() ?? '';
+                    const fullFirst = firstInit ? `${firstInit} ` : '';
+                    println(`Name: ${fullFirst}${lastName}`);
+                    println(
+                        padRight(`Type: ${p.passTypeCode}`, 11) +
+                        padRight(`Seat#: ${p.seatNumber || 'N/A'}`, 12) +
+                        padLeft(`P${Number(p.fare).toFixed(2)}`, 9)
+                    );
+                    push(LF);
+                });
+            }
 
-            passengers.forEach(p => {
-                const nameParts = p.name?.split(',') ?? [];
-                const lastName  = nameParts[0]?.trim() ?? '';
-                const firstInit = nameParts[1]?.trim().charAt(0) ?? '';
-                const name      = p.name ? `${firstInit}. ${lastName}` : 'N/A';
-                const fare      = Number(p.fare).toFixed(2);
+            const tourist = passengers.filter(p => p?.accommodation == 'Tourist');
+            if (tourist.length > 0) {
+                boldOn(); println('Tourist:'); boldOff();
+                println('--------------------------------');
+                tourist.forEach(p => {
+                    const nameParts = p.name?.split(',') ?? [];
+                    const lastName  = nameParts[0]?.trim() ?? '';
+                    const firstInit = nameParts[1]?.trim() ?? '';
+                    const fullFirst = firstInit ? `${firstInit} ` : '';
+                    println(`Name: ${fullFirst}${lastName}`);
+                    println(
+                        padRight(`Type: ${p.passTypeCode}`, 11) +
+                        padRight(`Seat#: ${p.seatNumber || 'N/A'}`, 12) +
+                        padLeft(`P${Number(p.fare).toFixed(2)}`, 9)
+                    );
+                    push(LF);
+                });
+            }
 
-                println(
-                    padRight(name, COL_NAME) +
-                    padRight(`${p.passTypeCode}`, 3) +
-                    padRight(`Seat#${p.seatNumber || 'N/A'}`, COL_SEAT) +
-                    padLeft(`P${fare}`, COL_FARE)
-                );
-            });
+            const passes = passengers.filter(p => p?.accommodation == null);
+            if (passes.length > 0) {
+                boldOn(); println('Passes:'); boldOff();
+                println('--------------------------------');
+                passes.forEach(p => {
+                    const nameParts = p.name?.split(',') ?? [];
+                    const lastName  = nameParts[0]?.trim() ?? '';
+                    const firstInit = nameParts[1]?.trim() ?? '';
+                    const fullFirst = firstInit ? `${firstInit} ` : '';
+                    println(`Name: ${fullFirst}${lastName}`);
+                    println(
+                        padRight(`Type: ${p.passTypeCode}`, 11) +
+                        padRight(`Seat#: N/A`, 12) +
+                        padLeft(`P${Number(p.fare).toFixed(2)}`, 9)
+                    );
+                    push(LF);
+                });
+            }
+
+            const hasInfants = passengers.some(p => p.hasInfant && p.infant?.length > 0);
+            if (hasInfants) {
+                boldOn(); println('Infants:'); boldOff();
+                println('--------------------------------');
+                passengers.forEach(p => {
+                    p.hasInfant && p.infant?.forEach(i => {
+                        const nameParts = i.name?.split(',') ?? [];
+                        const lastName  = nameParts[0]?.trim() ?? '';
+                        const firstInit = nameParts[1]?.trim() ?? '';
+                        const fullFirst = firstInit ? `${firstInit} ` : '';
+                        println(`Name: ${fullFirst}${lastName}`);
+                        println(
+                            padRight(`Type: I`, 11) +
+                            padRight(`Seat#: N/A`, 12) +
+                            padLeft(`P0.00`, 9)
+                        );
+                        push(LF);
+                    });
+                });
+            }
+
             println('--------------------------------');
         }
 
@@ -511,7 +571,7 @@ export default function TicketGenerator() {
                             </View>
                             {passengers.length> 0 ? (
                                 <>
-                                    <View style={{ borderBottomColor: '#9B9B9B', borderBottomWidth: 1, }}>
+                                    <View style={{ borderBottomWidth: 1, paddingBottom: 8, borderBottomColor: '#9B9B9B' }}>
                                         <View style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBlockColor: '#9B9B9B' }}>
                                             <Text style={{ fontWeight: '900', fontSize: 14, color: '#cf2a3a' }}>{refNumber}</Text>
                                             {refNumber && (
@@ -520,36 +580,34 @@ export default function TicketGenerator() {
                                         </View>
                                     
                                         <View style={{ paddingVertical: 5 }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3, borderBottomColor: '#9B9B9B', borderBottomWidth: 1, paddingBottom: 5 }}>
-                                                <Text style={{ fontSize: 13, width: '40%', fontWeight: '700', color: '#000' }}>Name:</Text>
-                                                <Text style={{ fontSize: 13, width: 50, fontWeight: '700', color: '#000' }}>Type:</Text>
-                                                <Text style={{ fontSize: 13, fontWeight: '700', width: 50, color: '#000' }}>Seat#:</Text>
-                                                <Text style={{ fontSize: 13, fontWeight: '700', width: 60, color: '#000', textAlign: 'right' }}>Fare</Text>
-                                            </View>
                                             {passengers.some((p) => p?.accommodation == 'Business Class' || p?.accommodation == 'B-Class' || p?.accommodation == 'B Class') && (
                                                 <View style={{ marginTop: 5}}>
-                                                    <Text style={{ fontSize: 14, fontWeight: '900',color: '#000' }}>B-Class</Text>
+                                                    <Text style={{ fontSize: 14, fontWeight: '900', marginBottom: 5,color: '#000' }}>B-Class</Text>
                                                     {passengers.filter((p) => p?.accommodation == 'Business Class' || p?.accommodation == 'B-Class' || p?.accommodation == 'B Class')
                                                     .map((p) => (
-                                                        <View key={p.seatNumber} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                            <Text style={{ fontSize: 13, width: '40%', color: '#000' }}>{`${p.name?.split(',')[1]?.trim().charAt(0)}. ${p.name?.split(',')[0]}`}</Text>
-                                                            <Text style={{ fontSize: 13, width: 50, textAlign: 'center', color: '#000' }}>{p.passTypeCode}</Text>
-                                                            <Text style={{ fontSize: 13, width: 50, textAlign: 'center', color: '#000' }}>{`${p.seatNumber}`}</Text>
-                                                            <Text style={{ fontSize: 13, width: 70, textAlign: 'right', color: '#000' }}>₱ {p?.fare?.toLocaleString('en-PH', { minimumFractionDigits: 2,  maximumFractionDigits: 2})}</Text>
+                                                        <View key={p.seatNumber} style={{ flexDirection: 'column', marginBottom: 15 }}>
+                                                            <Text style={{ fontSize: 13, width: '40%', color: '#000' }}>{`Name: ${p.name?.split(',')[1]?.trim()} ${p.name?.split(',')[0]}`}</Text>
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <Text style={{ fontSize: 13, width: 60, textAlign: 'center', color: '#000' }}>{`Type: ${p.passTypeCode}`}</Text>
+                                                                <Text style={{ fontSize: 13, width: 60, textAlign: 'left', color: '#000' }}>{`Seat#: ${p.seatNumber}`}</Text>
+                                                                <Text style={{ fontSize: 13, width: 100, textAlign: 'right', color: '#000' }}>Fare: ₱ {p?.fare?.toLocaleString('en-PH', { minimumFractionDigits: 2,  maximumFractionDigits: 2})}</Text>
+                                                            </View>
                                                         </View>
                                                     ))}
                                                 </View>
                                             )}
                                             {passengers.some((p) => p?.accommodation == 'Tourist') && (
                                                 <>
-                                                    <Text style={{ fontSize: 14, fontWeight: '900', marginTop: 5, marginBottom: 5, color: '#000' }}>Tourist</Text>
+                                                    <Text style={{ fontSize: 14, fontWeight: '900', marginBottom: 5, color: '#000' }}>Tourist</Text>
                                                     {passengers.filter((p) => p?.accommodation == 'Tourist')
                                                     .map((p) => (
-                                                        <View key={p.seatNumber} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                            <Text style={{ fontSize: 13, width: '40%', color: '#000' }}>{`${p.name?.split(',')[1]?.trim().charAt(0)}. ${p.name?.split(',')[0]}`}</Text>
-                                                            <Text style={{ fontSize: 13, width: 50, textAlign: 'center', color: '#000' }}>{p.passTypeCode}</Text>
-                                                            <Text style={{ fontSize: 13, width: 50, textAlign: 'center', color: '#000' }}>{`${p.seatNumber}`}</Text>
-                                                            <Text style={{ fontSize: 13, width: 70, textAlign: 'right', color: '#000' }}>₱ {p?.fare?.toLocaleString('en-PH', { minimumFractionDigits: 2,  maximumFractionDigits: 2})}</Text>
+                                                        <View key={p.seatNumber} style={{ flexDirection: 'column', marginBottom: 15 }}>
+                                                            <Text style={{ fontSize: 13, width: '40%', color: '#000' }}>{`Name: ${p.name?.split(',')[1]?.trim()} ${p.name?.split(',')[0]}`}</Text>
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <Text style={{ fontSize: 13, width: 60, textAlign: 'center', color: '#000' }}>{`Type: ${p.passTypeCode}`}</Text>
+                                                                <Text style={{ fontSize: 13, width: 60, textAlign: 'left', color: '#000' }}>{`Seat#: ${p.seatNumber}`}</Text>
+                                                                <Text style={{ fontSize: 13, width: 100, textAlign: 'right', color: '#000' }}>Fare: ₱ {p?.fare?.toLocaleString('en-PH', { minimumFractionDigits: 2,  maximumFractionDigits: 2})}</Text>
+                                                            </View>
                                                         </View>
                                                     ))}
                                                 </>
@@ -560,10 +618,10 @@ export default function TicketGenerator() {
                                                     {passengers.filter((p) => p.passType == 'Passes')
                                                     .map((p, index) => (
                                                         <View key={index} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                            <Text style={{ fontSize: 13, width: '40%' }}>{`${p.name?.split(',')[1]?.trim().charAt(0)}. ${p.name?.split(',')[0]}`}</Text>
-                                                            <Text style={{ fontSize: 13, width: 50, textAlign: 'center', color: '#000' }}>{p.passTypeCode}</Text>
-                                                            <Text style={{ fontSize: 13, width: 50, textAlign: 'center', color: '#000' }}>{`${p.seatNumber ?? 'N/A'}`}</Text>
-                                                            <Text style={{ fontSize: 13, width: 70, textAlign: 'right', color: '#000' }}>₱ {p?.fare?.toLocaleString('en-PH', { minimumFractionDigits: 2,  maximumFractionDigits: 2})}</Text>
+                                                            <Text style={{ fontSize: 13, width: '40%' }}>{`Name: ${p.name?.split(',')[1]?.trim()} ${p.name?.split(',')[0]}`}</Text>
+                                                            <Text style={{ fontSize: 13, width: 50, textAlign: 'left', color: '#000' }}>{p.passTypeCode}</Text>
+                                                            <Text style={{ fontSize: 13, width: 50, textAlign: 'left', color: '#000' }}>{`Seat#: ${'N/A'}`}</Text>
+                                                            <Text style={{ fontSize: 13, width: 70, textAlign: 'right', color: '#000' }}>Fare: ₱ {p?.fare?.toLocaleString('en-PH', { minimumFractionDigits: 2,  maximumFractionDigits: 2})}</Text>
                                                         </View>
                                                     ))}
                                                 </>
@@ -571,11 +629,13 @@ export default function TicketGenerator() {
                                             {passengers.map((p, passIndex) => 
                                                 p.hasInfant && p.infant?.map((i, index) => (
                                                     <View key={`${passIndex}-${index}`} style={{ marginBottom: 3 }}>
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                            <Text style={{ fontSize: 13, width: '40%' }}>{`${i.name?.split(',')[1]?.trim().charAt(0)}. ${i.name?.split(',')[0]}`}</Text>
-                                                            <Text style={{ fontSize: 13, width: 50, textAlign: 'center', color: '#000' }}>I</Text>
-                                                            <Text style={{ fontSize: 13, width: 50, textAlign: 'center', color: '#000' }}>N/A</Text>
-                                                            <Text style={{ fontSize: 13, width: 70, textAlign: 'right', color: '#000' }}>₱ 00.00</Text>
+                                                        <View style={{ flexDirection: 'column' }}>
+                                                            <Text style={{ fontSize: 13, width: '40%', color: '#000' }}>{`Name: ${i.name?.split(',')[1]?.trim()} ${i.name?.split(',')[0]}`}</Text>
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <Text style={{ fontSize: 13, width: 60, textAlign: 'center', color: '#000' }}>Type: I</Text>
+                                                                <Text style={{ fontSize: 13, width: 80, textAlign: 'center', color: '#000' }}>Seat#: N/A</Text>
+                                                                <Text style={{ fontSize: 13, width: 100, textAlign: 'right', color: '#000' }}>Fare: ₱ 00.00</Text>
+                                                            </View>
                                                         </View>
                                                     </View>
                                                 ))

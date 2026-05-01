@@ -722,7 +722,7 @@ export default function Forms({ errorForm }: FormProps) {
                                                         <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#494949' }}>Amount:</Text>
                                                         <View style={{ borderColor: '#FFC107', backgroundColor: '#ffc10727', borderWidth: 2, borderRadius: 5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 8 }}>
                                                             <Text style={{ fontSize: 20, color: '#000' }}>₱ </Text>
-                                                            <Text style={{ fontWeight: 'bold', textAlign: 'right', fontSize: 20 }}>
+                                                            <Text style={{ fontWeight: 'bold', textAlign: 'right', fontSize: 20, color: '#000' }}>
                                                                 {ComputedCargoAmount(c).amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                             </Text>
                                                         </View>

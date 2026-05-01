@@ -250,7 +250,7 @@ export default function ManualBooking() {
                     return {
                         trip_id: t.id,
                         vessel: t.trip?.vessel?.name ?? 'N/A',
-                        specific_days: t.specific_days ?? '',
+                        specific_days: t.specific_days[0] ?? '',
                         route_origin: t.trip?.route?.origin ?? '',
                         route_destination: t.trip?.route?.destination ?? '',
                         departure_time: departureTime,
