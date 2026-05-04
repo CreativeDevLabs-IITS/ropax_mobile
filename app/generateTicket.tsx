@@ -368,6 +368,7 @@ export default function TicketGenerator() {
                 padRight('Address:', 10) +
                 padLeft(paxAddress[0]?.address, 8)
             )
+            println('--------------------------------');
         }
 
         const cargos = passengers.flatMap(p => p.hasCargo ? p.cargo : []);
