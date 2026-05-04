@@ -25,7 +25,9 @@ export default function TicketGenerator() {
     const [time, setTime] = useState('');
     const [loading, setLoading] = useState(false);
     const insets = useSafeAreaInsets();
+
     const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isMountedRef = useRef(true);
     
     const [bleDevices, setBleDevices] = useState<Device[]>([]);
     const [bleModalVisible, setBleModalVisible] = useState(false);
@@ -39,6 +41,20 @@ export default function TicketGenerator() {
         setConnectedDeviceId(null);
         setShowDisconnect(false);
     }, [connectedDevice, showDisconnect])
+
+    useEffect(() => {
+        isMountedRef.current = true;
+
+        return () => {
+            isMountedRef.current = false;
+            if (scanTimeoutRef.current) {
+                clearTimeout(scanTimeoutRef.current);
+                scanTimeoutRef.current = null;
+            }
+
+            bleManager?.stopDeviceScan();
+        }
+    }, []);
 
     useEffect(() => {
         if (!departure_date || typeof departure_date !== 'string' || departure_date.trim() === '') return;
@@ -190,6 +206,14 @@ export default function TicketGenerator() {
         const fontNormal = () => push(GS, 0x21, 0x00);
         const fontTall = () => push(GS, 0x21, 0x01);
 
+        let vesselNameLength = 0;
+
+        if(vessel.length > 12) {
+            vesselNameLength = 10;
+        }else {
+            vesselNameLength = 13
+        }
+
         push(ESC, 0x40);
 
         alignCenter();
@@ -216,7 +240,7 @@ export default function TicketGenerator() {
 
         println(
             padRight('Vessel:', 16) +
-            padLeft(`${vessel}`, 12)
+            padLeft(`${vessel}`, vesselNameLength)
         )
         println(
             padRight('Trip Date:', 16) +
@@ -337,6 +361,15 @@ export default function TicketGenerator() {
             println('--------------------------------');
         }
 
+        if(passengers.some(p => p.address != '')) {
+            const paxAddress = passengers?.filter(p => p?.address != '');
+
+            println(
+                padRight('Address:', 10) +
+                padLeft(paxAddress[0]?.address, 8)
+            )
+        }
+
         const cargos = passengers.flatMap(p => p.hasCargo ? p.cargo : []);
         if (cargos.length > 0) {
             boldOn(); println('CARGO:'); boldOff();
@@ -451,15 +484,23 @@ export default function TicketGenerator() {
     };
 
     const clearAll = () => {
+        if (scanTimeoutRef.current) {
+            clearTimeout(scanTimeoutRef.current);
+            scanTimeoutRef.current = null;
+        }
+
         setLoading(true);
 
-        setTimeout(() => {
-            clearTrip();
-            clearPassengers();
-            setPaxCargoProperties([]);
-            setLoading(false);
+        clearTrip();
+        clearPassengers();
+        setPaxCargoProperties([]);
+
+        scanTimeoutRef.current = setTimeout(() => {
+            if (isMountedRef.current) {
+                setLoading(false);
+            }
             router.replace('/(tabs)/manual-booking');
-        }, 400)
+        }, 400);
     }
     
 

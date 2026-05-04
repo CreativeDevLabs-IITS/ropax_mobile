@@ -146,11 +146,14 @@ const SRVessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
     const [seatSelectionChannel, setSeatSelectionChannel] = useState<string[]>([]);
     const [bclassHasSeats, setBClassHasSeat] = useState<boolean>(true);
     const [touristHasSeats, setTouristHasSeat] = useState<boolean>(true)
-    const stationRef = useRef<{ id: string; color: string } | null>(null);
     const tripIdRef = useRef(id);
+    const stationRef = useRef<{ id: string; color: string } | null>(null);
+    
     const [disabledSeats, setDisabledSeats] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { height, width } = useWindowDimensions();
+
+    const channelRef = useRef<any>(null);
     
     
     useEffect(() => { tripIdRef.current = id; }, [id]);
@@ -255,7 +258,7 @@ const SRVessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
         }
 
         fetchBookingsAndDisabledSeats();
-    }, [])
+    }, [disabledSeats])
     
     useEffect(() => {
         const channel = async () => {
@@ -288,14 +291,15 @@ const SRVessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
             });
     
             listen.subscribe();
-            return listen;
+            channelRef.current = listen;
         }
 
-        let channelInstance: any;
-        channel().then(ch => (channelInstance = ch));
-
+        channel();
         return () => {
-            channelInstance?.unsubscribe();
+            if(channelRef.current) {
+                channelRef.current.unsubscribe();
+                channelRef.current = null;
+            }
         };
     }, [id])
     

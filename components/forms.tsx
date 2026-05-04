@@ -86,6 +86,7 @@ export default function Forms({ errorForm }: FormProps) {
     const formattedPaxList = useMemo(() =>
         paxlists
             .filter(p => p.passenger_type?.name != null && p.passenger_type?.name != 'Infant')
+            .slice(0, 100)
             .map(p => ({ id: p.id, title: `${p.last_name}, ${p.first_name}` })),
     [paxlists]);
 
@@ -134,16 +135,24 @@ export default function Forms({ errorForm }: FormProps) {
         return { amount: 0, optionID: 0 };
     }, [cargoProperties, routeID]);
 
-    const computedPassengerCargo = useMemo(() =>
-        passengers.map(pax => {
-            if (!pax.cargo || pax.cargo.length === 0) return pax;
-            const updatedCargo = pax.cargo.map(cargoItem => {
+    const passengerCargoSnapshot = useMemo(() =>
+        passengers
+            .filter(p => p.cargo?.length > 0)
+            .map(p => ({ id: p.id, cargo: p.cargo })),
+    [passengers]);
+
+    const cargoComputeMap = useMemo(() => {
+        const map: Record<string, { cargoAmount: number; cargoOptionID: number }[]> = {};
+
+        passengerCargoSnapshot.forEach(pax => {
+            map[pax.id] = pax.cargo.map(cargoItem => {
                 const { amount, optionID } = ComputedCargoAmount(cargoItem);
-                return { ...cargoItem, cargoAmount: amount, cargoOptionID: optionID };
+                return { cargoAmount: amount, cargoOptionID: optionID };
             });
-            return { ...pax, cargo: updatedCargo };
-        }),
-    [passengers, cargoProperties, routeID]);
+        });
+
+        return map;
+    }, [passengerCargoSnapshot, cargoProperties, routeID]);
 
 
     const handleOnSearch = useCallback((text: string, paxId: string | number) => {
@@ -426,25 +435,33 @@ export default function Forms({ errorForm }: FormProps) {
     }, []);
 
     useEffect(() => {
+        if (Object.keys(cargoComputeMap).length === 0) return;
+
         setPassengers(prev => {
             let anyChanged = false;
+
             const updated = prev.map(p => {
-                const computed = computedPassengerCargo.find(c => c.id === p.id);
-                if (!computed?.cargo) return p;
+                const computedItems = cargoComputeMap[p.id];
+                if (!computedItems || !p.cargo?.length) return p;
+
                 let passengerChanged = false;
-                const updatedCargo = p.cargo?.map((c, index) => {
-                    const computedItem = computed.cargo[index];
-                    if (!computedItem) return c;
-                    if (c.cargoAmount === computedItem.cargoAmount && c.cargoOptionID === computedItem.cargoOptionID) return c;
+
+                const updatedCargo = p.cargo.map((c, index) => {
+                    const computed = computedItems[index];
+                    if (!computed) return c;
+                    if (c.cargoAmount === computed.cargoAmount && c.cargoOptionID === computed.cargoOptionID) return c;
+
                     passengerChanged = true;
                     anyChanged = true;
-                    return { ...c, cargoAmount: computedItem.cargoAmount, cargoOptionID: computedItem.cargoOptionID };
+                    return { ...c, cargoAmount: computed.cargoAmount, cargoOptionID: computed.cargoOptionID };
                 });
+
                 return passengerChanged ? { ...p, cargo: updatedCargo } : p;
             });
+
             return anyChanged ? updated : prev;
         });
-    }, [computedPassengerCargo]);
+    }, [cargoComputeMap])
 
 
     return (
@@ -710,87 +727,72 @@ export default function Forms({ errorForm }: FormProps) {
                                                 <Text style={{ color: '#fff', fontWeight: '600', fontSize: 19 }}>Add Cargo</Text>
                                             </TouchableOpacity>
                                         </View>
-                                        {(p.cargo ?? []).map((c, cargoIndex) => (
-                                            <View key={`${p.id}-${cargoIndex}`}>
-                                                {cargoIndex != 0 && (
-                                                    <TouchableOpacity onPress={() => removeCargo(p.seatNumber, index, cargoIndex)} style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10, alignSelf: 'flex-end' }}>
-                                                        <Ionicons name={'close'} size={20} color={'#cf2a3a'} />
-                                                    </TouchableOpacity>
-                                                )}
-                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 5 }}>
-                                                    <View style={{ flexDirection: 'column', alignSelf: 'flex-start' }}>
-                                                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#494949' }}>Amount:</Text>
-                                                        <View style={{ borderColor: '#FFC107', backgroundColor: '#ffc10727', borderWidth: 2, borderRadius: 5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 8 }}>
-                                                            <Text style={{ fontSize: 20, color: '#000' }}>₱ </Text>
-                                                            <Text style={{ fontWeight: 'bold', textAlign: 'right', fontSize: 20, color: '#000' }}>
-                                                                {ComputedCargoAmount(c).amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                            </Text>
-                                                        </View>
-                                                    </View>
-                                                    {c.cargoType && c.cargoType != 'Rolling Cargo' && (
-                                                        <View style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
-                                                            <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>Quantity:</Text>
-                                                            <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: '#B3B3B3', paddingHorizontal: 5, borderWidth: 1, borderRadius: 5 }}>
-                                                                <TouchableOpacity disabled={c.quantity == 1} onPress={() => handleCargoQuantity('minus', cargoIndex, p.id)} style={{ paddingRight: 5 }}>
-                                                                    <Ionicons name={'remove'} size={25} color={c.quantity == 1 ? "#d4d4d4ff" : undefined} />
-                                                                </TouchableOpacity>
-                                                                <Text style={{ paddingHorizontal: 14, fontSize: 20, fontWeight: 'bold', borderRightColor: '#B3B3B3', borderLeftColor: '#B3B3B3', borderLeftWidth: 1, borderRightWidth: 1, paddingVertical: 5 }}>
-                                                                    {c.quantity}
-                                                                </Text>
-                                                                <TouchableOpacity onPress={() => handleCargoQuantity('add', cargoIndex, p.id)} style={{ paddingLeft: 5 }}>
-                                                                    <Ionicons name={'add'} size={25} />
-                                                                </TouchableOpacity>
-                                                            </View>
-                                                        </View>
+                                        {(p.cargo ?? []).map((c, cargoIndex) => {
+                                            const computedCargo = cargoComputeMap[p.id]?.[cargoIndex];
+
+                                            return (
+                                                <View key={`${p.id}-${cargoIndex}`}>
+                                                    {cargoIndex != 0 && (
+                                                        <TouchableOpacity onPress={() => removeCargo(p.seatNumber, index, cargoIndex)} style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10, alignSelf: 'flex-end' }}>
+                                                            <Ionicons name={'close'} size={20} color={'#cf2a3a'} />
+                                                        </TouchableOpacity>
                                                     )}
-                                                </View>
-                                                <View style={{ width: '100%' }}>
-                                                    <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>Cargo Type:</Text>
-                                                    <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
-                                                        <Dropdown
-                                                            onChange={(item) => handleOnUpdateCargo(p.id, cargoIndex, 'cargoType', item.label, 'cargoTypeID', item.value)}
-                                                            value={c.cargoTypeID}
-                                                            data={cargoProperties?.data?.cargo_types?.map((type: any) => ({ label: type.name, value: type.id })) ?? []}
-                                                            labelField="label" valueField="value" placeholder="Select Cargo Type"
-                                                            style={{ height: 50, width: '100%', paddingHorizontal: 10 }}
-                                                            containerStyle={{ alignSelf: 'flex-start', width: '90%' }}
-                                                            selectedTextStyle={{ fontSize: 18, lineHeight: 35, fontWeight: '600', color: '#000' }}
-                                                            renderRightIcon={() => <Ionicons name="chevron-down" size={18} />}
-                                                            dropdownPosition="bottom"
-                                                            renderItem={(item) => <View style={{ width: '80%', padding: 8 }}><Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text></View>}
-                                                        />
-                                                    </View>
-                                                </View>
-                                                {c.cargoType == 'Rolling Cargo' ? (
-                                                    <View>
-                                                        <View style={{ width: '100%', marginTop: 10 }}>
-                                                            <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>Brand:</Text>
-                                                            <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
-                                                                <Dropdown
-                                                                    onChange={(item) => handleOnUpdateCargo(p.id, cargoIndex, 'cargoBrand', item.label, 'cargoBrandID', item.value)}
-                                                                    value={c.cargoBrandID}
-                                                                    data={cargoProperties?.data?.brands?.map((b: any) => ({ label: b.name, value: b.id })) ?? []}
-                                                                    labelField="label" valueField="value" placeholder="Select Brand"
-                                                                    style={{ height: 50, width: '100%', paddingHorizontal: 10 }}
-                                                                    containerStyle={{ alignSelf: 'flex-start', width: '90%' }}
-                                                                    selectedTextStyle={{ fontSize: 18, lineHeight: 35, fontWeight: '600', color: '#000' }}
-                                                                    renderRightIcon={() => <Ionicons name="chevron-down" size={15} />}
-                                                                    dropdownPosition="bottom"
-                                                                    renderItem={(item) => <View style={{ width: '80%', padding: 8 }}><Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text></View>}
-                                                                />
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 5 }}>
+                                                        <View style={{ flexDirection: 'column', alignSelf: 'flex-start' }}>
+                                                            <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#494949' }}>Amount:</Text>
+                                                            <View style={{ borderColor: '#FFC107', backgroundColor: '#ffc10727', borderWidth: 2, borderRadius: 5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 8 }}>
+                                                                <Text style={{ fontSize: 20, color: '#000' }}>₱ </Text>
+                                                                <Text style={{ fontWeight: 'bold', textAlign: 'right', fontSize: 20, color: '#000' }}>
+                                                                    {(computedCargo?.cargoAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </Text>
                                                             </View>
                                                         </View>
-                                                        <View style={{ marginTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                            <View style={{ width: '50%' }}>
-                                                                <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>{'Specifications (CC):'}</Text>
-                                                                <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, height: 45, justifyContent: 'center' }}>
+                                                        {c.cargoType && c.cargoType != 'Rolling Cargo' && (
+                                                            <View style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
+                                                                <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>Quantity:</Text>
+                                                                <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: '#B3B3B3', paddingHorizontal: 5, borderWidth: 1, borderRadius: 5 }}>
+                                                                    <TouchableOpacity disabled={c.quantity == 1} onPress={() => handleCargoQuantity('minus', cargoIndex, p.id)} style={{ paddingRight: 5 }}>
+                                                                        <Ionicons name={'remove'} size={25} color={c.quantity == 1 ? "#d4d4d4ff" : undefined} />
+                                                                    </TouchableOpacity>
+                                                                    <Text style={{ paddingHorizontal: 14, fontSize: 20, fontWeight: 'bold', borderRightColor: '#B3B3B3', borderLeftColor: '#B3B3B3', borderLeftWidth: 1, borderRightWidth: 1, paddingVertical: 5 }}>
+                                                                        {c.quantity}
+                                                                    </Text>
+                                                                    <TouchableOpacity onPress={() => handleCargoQuantity('add', cargoIndex, p.id)} style={{ paddingLeft: 5 }}>
+                                                                        <Ionicons name={'add'} size={25} />
+                                                                    </TouchableOpacity>
+                                                                </View>
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                    <View style={{ width: '100%' }}>
+                                                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>Cargo Type:</Text>
+                                                        <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
+                                                            <Dropdown
+                                                                onChange={(item) => handleOnUpdateCargo(p.id, cargoIndex, 'cargoType', item.label, 'cargoTypeID', item.value)}
+                                                                value={c.cargoTypeID}
+                                                                data={cargoProperties?.data?.cargo_types?.map((type: any) => ({ label: type.name, value: type.id })) ?? []}
+                                                                labelField="label" valueField="value" placeholder="Select Cargo Type"
+                                                                style={{ height: 50, width: '100%', paddingHorizontal: 10 }}
+                                                                containerStyle={{ alignSelf: 'flex-start', width: '90%' }}
+                                                                selectedTextStyle={{ fontSize: 18, lineHeight: 35, fontWeight: '600', color: '#000' }}
+                                                                renderRightIcon={() => <Ionicons name="chevron-down" size={18} />}
+                                                                dropdownPosition="bottom"
+                                                                renderItem={(item) => <View style={{ width: '80%', padding: 8 }}><Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text></View>}
+                                                            />
+                                                        </View>
+                                                    </View>
+                                                    {c.cargoType == 'Rolling Cargo' ? (
+                                                        <View>
+                                                            <View style={{ width: '100%', marginTop: 10 }}>
+                                                                <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>Brand:</Text>
+                                                                <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
                                                                     <Dropdown
-                                                                        onChange={(item) => handleOnUpdateCargo(p.id, cargoIndex, 'cargoSpecification', item.label, 'cargoSpecificationID', item.value)}
-                                                                        value={c.cargoSpecificationID}
-                                                                        data={cargoProperties?.data?.cargo_options?.filter((opt: any) => opt.specification).map((s: any) => ({ label: String(s.specification), value: s.id })) ?? []}
-                                                                        labelField="label" valueField="value" placeholder="Select CC"
+                                                                        onChange={(item) => handleOnUpdateCargo(p.id, cargoIndex, 'cargoBrand', item.label, 'cargoBrandID', item.value)}
+                                                                        value={c.cargoBrandID}
+                                                                        data={cargoProperties?.data?.brands?.map((b: any) => ({ label: b.name, value: b.id })) ?? []}
+                                                                        labelField="label" valueField="value" placeholder="Select Brand"
                                                                         style={{ height: 50, width: '100%', paddingHorizontal: 10 }}
-                                                                        containerStyle={{ alignSelf: 'flex-start', width: '42%' }}
+                                                                        containerStyle={{ alignSelf: 'flex-start', width: '90%' }}
                                                                         selectedTextStyle={{ fontSize: 18, lineHeight: 35, fontWeight: '600', color: '#000' }}
                                                                         renderRightIcon={() => <Ionicons name="chevron-down" size={15} />}
                                                                         dropdownPosition="bottom"
@@ -798,37 +800,57 @@ export default function Forms({ errorForm }: FormProps) {
                                                                     />
                                                                 </View>
                                                             </View>
-                                                            <View style={{ width: '48%' }}>
-                                                                <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>Plate#:</Text>
-                                                                <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, height: 45, justifyContent: 'center' }}>
-                                                                    <TextInput value={c.cargoPlateNo} onChangeText={(text) => updateCargo(p.id, cargoIndex, 'cargoPlateNo', text)} placeholder='Plate#' style={{ fontSize: 19, fontWeight: '600', color: '#000' }} />
+                                                            <View style={{ marginTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                                <View style={{ width: '50%' }}>
+                                                                    <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>{'Specifications (CC):'}</Text>
+                                                                    <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, height: 45, justifyContent: 'center' }}>
+                                                                        <Dropdown
+                                                                            onChange={(item) => handleOnUpdateCargo(p.id, cargoIndex, 'cargoSpecification', item.label, 'cargoSpecificationID', item.value)}
+                                                                            value={c.cargoSpecificationID}
+                                                                            data={cargoProperties?.data?.cargo_options?.filter((opt: any) => opt.specification).map((s: any) => ({ label: String(s.specification), value: s.id })) ?? []}
+                                                                            labelField="label" valueField="value" placeholder="Select CC"
+                                                                            style={{ height: 50, width: '100%', paddingHorizontal: 10 }}
+                                                                            containerStyle={{ alignSelf: 'flex-start', width: '42%' }}
+                                                                            selectedTextStyle={{ fontSize: 18, lineHeight: 35, fontWeight: '600', color: '#000' }}
+                                                                            renderRightIcon={() => <Ionicons name="chevron-down" size={15} />}
+                                                                            dropdownPosition="bottom"
+                                                                            renderItem={(item) => <View style={{ width: '80%', padding: 8 }}><Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text></View>}
+                                                                        />
+                                                                    </View>
+                                                                </View>
+                                                                <View style={{ width: '48%' }}>
+                                                                    <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>Plate#:</Text>
+                                                                    <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, height: 45, justifyContent: 'center' }}>
+                                                                        <TextInput value={c.cargoPlateNo} onChangeText={(text) => updateCargo(p.id, cargoIndex, 'cargoPlateNo', text)} placeholder='Plate#' style={{ fontSize: 19, fontWeight: '600', color: '#000' }} />
+                                                                    </View>
                                                                 </View>
                                                             </View>
                                                         </View>
-                                                    </View>
-                                                ) : c.cargoType == 'Parcel' ? (
-                                                    <View style={{ marginTop: 5 }}>
-                                                        <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>Parcel Category:</Text>
-                                                        <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
-                                                            <Dropdown
-                                                                onChange={(item) => handleOnUpdateCargo(p.id, cargoIndex, 'parcelCategory', item.label, 'parcelCategoryID', item.value)}
-                                                                value={c.parcelCategoryID}
-                                                                data={cargoProperties?.data?.parcel_categories?.map((category: any) => ({ label: category.name.slice(1, -1), value: category.id })) ?? []}
-                                                                labelField="label" valueField="value" placeholder="Select Category"
-                                                                style={{ height: 50, width: '100%', paddingHorizontal: 10 }}
-                                                                containerStyle={{ alignSelf: 'flex-start', width: '85%' }}
-                                                                selectedTextStyle={{ fontSize: 19, lineHeight: 35, fontWeight: '600', color: '#000' }}
-                                                                renderRightIcon={() => <Ionicons name="chevron-down" size={15} />}
-                                                                dropdownPosition="bottom"
-                                                                renderItem={(item) => <View style={{ width: '80%', padding: 8 }}><Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text></View>}
-                                                            />
+                                                    ) : c.cargoType == 'Parcel' ? (
+                                                        <View style={{ marginTop: 5 }}>
+                                                            <Text style={{ fontSize: 17, fontWeight: 'bold', color: '#545454' }}>Parcel Category:</Text>
+                                                            <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
+                                                                <Dropdown
+                                                                    onChange={(item) => handleOnUpdateCargo(p.id, cargoIndex, 'parcelCategory', item.label, 'parcelCategoryID', item.value)}
+                                                                    value={c.parcelCategoryID}
+                                                                    data={cargoProperties?.data?.parcel_categories?.map((category: any) => ({ label: category.name.slice(1, -1), value: category.id })) ?? []}
+                                                                    labelField="label" valueField="value" placeholder="Select Category"
+                                                                    style={{ height: 50, width: '100%', paddingHorizontal: 10 }}
+                                                                    containerStyle={{ alignSelf: 'flex-start', width: '85%' }}
+                                                                    selectedTextStyle={{ fontSize: 19, lineHeight: 35, fontWeight: '600', color: '#000' }}
+                                                                    renderRightIcon={() => <Ionicons name="chevron-down" size={15} />}
+                                                                    dropdownPosition="bottom"
+                                                                    renderItem={(item) => <View style={{ width: '80%', padding: 8 }}><Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text></View>}
+                                                                />
+                                                            </View>
                                                         </View>
-                                                    </View>
-                                                ) : (
-                                                    <View />
-                                                )}
-                                            </View>
-                                        ))}
+                                                    ) : (
+                                                        <View />
+                                                    )}
+                                                </View>
+                                            )
+                                        })}
+                                        
                                     </View>
                                 )}
                             </View>

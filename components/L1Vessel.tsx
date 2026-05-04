@@ -149,6 +149,7 @@ const L1Vessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
     const [isLoading, setIsLoading] = useState(true);
 
     const stationRef = useRef<{ id: string; color: string } | null>(null);
+    const channelRef = useRef<any>(null);
 
     const isTouristPaxAccom = useMemo(() =>
         passengers.some(p => p.hasScanned === true && p.accommodation === 'Tourist')
@@ -268,14 +269,13 @@ const L1Vessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
             });
 
             listen.subscribe();
-            return listen;
+            channelRef.current = listen;
         };
 
-        let channelInstance: any;
-        channel().then(ch => (channelInstance = ch));
-
+        channel();
         return () => {
-            channelInstance?.unsubscribe();
+            channelRef.current.unsubscribe();
+            channelRef.current = null;
         };
     }, [id]);
 
