@@ -163,7 +163,7 @@ export default function TicketGenerator() {
         }
     };
 
-    const buildPrintBytes = (): Uint8Array => {
+    const buildPrintBytes = useCallback((): Uint8Array => {
         const ESC = 0x1B;
         const GS  = 0x1D;
         const LF  = 0x0A;
@@ -422,7 +422,8 @@ export default function TicketGenerator() {
         push(GS, 0x56, 0x41, 0x00);
 
         return new Uint8Array(bytes);
-    };
+    }, [vessel, mobileCode, origin, destination, tripDate, time, 
+    refNumber, passengers, totalFare, cashTendered, fareChange, note]);
 
     const printViaBluetooth = async () => {
         if (!connectedDevice) {
@@ -484,25 +485,19 @@ export default function TicketGenerator() {
         }
     };
 
-    const clearAll = () => {
-        if (scanTimeoutRef.current) {
-            clearTimeout(scanTimeoutRef.current);
-            scanTimeoutRef.current = null;
-        }
-
+    const clearAll = useCallback(() => {
+        if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
         setLoading(true);
-
         clearTrip();
         clearPassengers();
         setPaxCargoProperties([]);
 
         scanTimeoutRef.current = setTimeout(() => {
-            if (isMountedRef.current) {
-                setLoading(false);
-            }
+            if (!isMountedRef.current) return;
+            setLoading(false);
             router.replace('/(tabs)/manual-booking');
         }, 400);
-    }
+    }, [clearTrip, clearPassengers, setPaxCargoProperties])
     
 
     return (

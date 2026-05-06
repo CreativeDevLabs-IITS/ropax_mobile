@@ -250,7 +250,7 @@ const SRVessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
                     setDisabledSeats(disabledSeats?.vessel?.disabled_seats)
                 }
             }catch(error: any) {
-                Alert.alert('Error', error.message);
+                Alert.alert('Error', error.message || 'Failed to load seat information. Please try again later.');
             }finally {
                 setParentLoading(false)
                 setIsLoading(false);

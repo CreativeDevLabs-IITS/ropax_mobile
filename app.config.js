@@ -3,7 +3,7 @@ import 'dotenv/config';
 export default {
   expo: {
     name: "Leopards Ticketing",
-    slug: "leopards-mobile",
+    slug: "leopards",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -57,7 +57,7 @@ export default {
     },
     extra: {
       eas: {
-        projectId: "8fc405ac-ccde-41aa-ad07-291f82b8c63b"
+        projectId: "1111d0d9-33b6-4f01-9dff-f4923bb77502"
       },
       API_URL: process.env.API_URL, 
       API_KEY: process.env.API_KEY,

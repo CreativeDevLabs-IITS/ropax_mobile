@@ -125,7 +125,7 @@ export default function ManualBooking() {
                 setCargoReady(true);
             }
         } catch (error) {
-            console.log('Cargo props error:', error);
+            console.log('Error', error);
         }
     }
 
@@ -277,7 +277,6 @@ export default function ManualBooking() {
                 }
             }
         } catch (error: any) {
-            console.log("FetchTrips error:", error);
             Alert.alert("Error", error.message || "Something went wrong");
         } finally {
             setContentLoading(false);
@@ -401,6 +400,15 @@ export default function ManualBooking() {
             setTotalSheetLoading(false);
         }
     }
+
+    useEffect(() => {
+        return () => {
+            translateY.stopAnimation();
+            fadeInAnim.stopAnimation();
+            translateY.removeAllListeners();
+            fadeInAnim.removeAllListeners();
+        };
+    }, []);
 
     return (
         <GestureHandlerRootView style={{ backgroundColor: '#fdfdfd', flex: 1, position: 'relative' }}>
