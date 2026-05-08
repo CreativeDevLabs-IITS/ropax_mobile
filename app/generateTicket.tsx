@@ -172,27 +172,24 @@ export default function TicketGenerator() {
         const push = (...b: number[]) => bytes.push(...b);
 
         const pushStr = (str: string) => {
-            for (let i = 0; i < str.length; i++) {
+            for (let i = 0; i < str?.length; i++) {
                 bytes.push(str.charCodeAt(i) & 0xFF);
             }
         };
 
-        const padRight = (text, width) => {
-            return text.length >= width
-                ? text.substring(0, width)
-                : text + ' '.repeat(width - text.length);
-        };
-
         const padLeft = (text, width) => {
-            return text.length >= width
-                ? text.substring(0, width)
-                : ' '.repeat(width - text.length) + text;
+            const str = text == null ? '' : String(text);
+            return str.length >= width
+                ? str  // ← don't truncate, just return as-is
+                : ' '.repeat(width - str.length) + str;
         };
 
-        const COL_NAME = 12;
-        const COL_TYPE = 5;
-        const COL_SEAT = 8;
-        const COL_FARE = 9;
+        const padRight = (text, width) => {
+            const str = text == null ? '' : String(text);
+            return str.length >= width
+                ? str  // ← same here
+                : str + ' '.repeat(width - str.length);
+        };
 
 
         const println = (str: string) => { pushStr(str); push(LF); };
@@ -206,13 +203,14 @@ export default function TicketGenerator() {
         const fontNormal = () => push(GS, 0x21, 0x00);
         const fontTall = () => push(GS, 0x21, 0x01);
 
-        let vesselNameLength = 0;
+        let vesselTextPad = 0;
 
-        if(vessel.length > 12) {
-            vesselNameLength = 10;
+        if(vessel.length > 11) {
+            vesselTextPad = 10;
         }else {
-            vesselNameLength = 13
+            vesselTextPad = 14;
         }
+
 
         push(ESC, 0x40);
 
@@ -240,7 +238,7 @@ export default function TicketGenerator() {
 
         println(
             padRight('Vessel:', 16) +
-            padLeft(`${vessel}`, vesselNameLength)
+            padLeft(`${vessel}`, vesselTextPad)
         )
         println(
             padRight('Trip Date:', 16) +
@@ -259,7 +257,7 @@ export default function TicketGenerator() {
             boldOff();
 
             const qrData = refNumber;
-            const qrLen = qrData.length + 3;
+            const qrLen = qrData?.length + 3;
             const pL = qrLen % 256;
             const pH = Math.floor(qrLen / 256);
 
@@ -275,15 +273,17 @@ export default function TicketGenerator() {
         println('--------------------------------');
         
         alignLeft();
-        if (passengers.length > 0) {
+        if (passengers?.length > 0) {
             const bClass = passengers.filter(p =>
                 p?.accommodation == 'Business Class' ||
                 p?.accommodation == 'B-Class' ||
-                p?.accommodation == 'B Class'
+                p?.accommodation == 'B Class' ||
+                p?.accommodation == 'Deluxe' ||
+                p?.accommodation == 'Deluxe Class'
             );
-            if (bClass.length > 0) {
+            if (bClass?.length > 0) {
                 boldOn(); println('B-Class:'); boldOff();
-                println('--------------------------------');
+
                 bClass.forEach(p => {
                     const nameParts = p.name?.split(',') ?? [];
                     const lastName  = nameParts[0]?.trim() ?? '';
@@ -300,9 +300,9 @@ export default function TicketGenerator() {
             }
 
             const tourist = passengers.filter(p => p?.accommodation == 'Tourist');
-            if (tourist.length > 0) {
+            if (tourist?.length > 0) {
                 boldOn(); println('Tourist:'); boldOff();
-                println('--------------------------------');
+
                 tourist.forEach(p => {
                     const nameParts = p.name?.split(',') ?? [];
                     const lastName  = nameParts[0]?.trim() ?? '';
@@ -319,9 +319,9 @@ export default function TicketGenerator() {
             }
 
             const passes = passengers.filter(p => p?.accommodation == null);
-            if (passes.length > 0) {
+            if (passes?.length > 0) {
                 boldOn(); println('Passes:'); boldOff();
-                println('--------------------------------');
+
                 passes.forEach(p => {
                     const nameParts = p.name?.split(',') ?? [];
                     const lastName  = nameParts[0]?.trim() ?? '';
@@ -340,7 +340,7 @@ export default function TicketGenerator() {
             const hasInfants = passengers.some(p => p.hasInfant && p.infant?.length > 0);
             if (hasInfants) {
                 boldOn(); println('Infants:'); boldOff();
-                println('--------------------------------');
+
                 passengers.forEach(p => {
                     p.hasInfant && p.infant?.forEach(i => {
                         const nameParts = i.name?.split(',') ?? [];
@@ -362,7 +362,7 @@ export default function TicketGenerator() {
         }
 
         if(passengers.some(p => p.address != '')) {
-            const paxAddress = passengers?.filter(p => p?.address != '');
+            const paxAddress = passengers?.filter(p => p?.address != null);
 
             println(
                 padRight('Address:', 10) +
@@ -371,8 +371,8 @@ export default function TicketGenerator() {
             println('--------------------------------');
         }
 
-        const cargos = passengers.flatMap(p => p.hasCargo ? p.cargo : []);
-        if (cargos.length > 0) {
+        const cargos = passengers.flatMap(p => p?.hasCargo ? p?.cargo : []);
+        if (cargos?.length > 0) {
             boldOn(); println('CARGO:'); boldOff();
             cargos.forEach(c => {
                 const desc = c.cargoType === 'Rolling Cargo'
@@ -413,9 +413,10 @@ export default function TicketGenerator() {
         println('- Service fee is non-refundable.');
         println('- Pre-Departure Refund: 10%');
         println('  charge.');
-        println('- Post-Departure/No Show: 20%');
+        println('- Post-Departure Refund: 20%');
         println('  charge.');
-        println('- REFUND TAKES 7 DAYS');
+        println('- REFUND VALID WITHIN 7 DAYS');
+        println('  OF DEPARTURE ONLY.');
 
         fontNormal();
         push(LF, LF, LF, LF, LF, LF);
@@ -438,7 +439,6 @@ export default function TicketGenerator() {
             const services = await connectedDevice.services();
             let printCharacteristic = null;
 
-            // Find writable characteristic
             for (const service of services) {
                 const characteristics = await service.characteristics();
                 for (const char of characteristics) {

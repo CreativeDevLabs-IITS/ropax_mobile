@@ -426,7 +426,6 @@ const PassengerCard = memo(({
                     </View>
 
                     {(p.cargo ?? []).map((c: any, cargoIndex: number) => {
-                        const computedCargo = cargoComputeMap[p.id]?.[cargoIndex];
                         return (
                             <View key={`${p.id}-${cargoIndex}`}>
                                 {cargoIndex !== 0 && (
@@ -443,7 +442,7 @@ const PassengerCard = memo(({
                                         <View style={styles.cargoAmountBox}>
                                             <Text style={{ fontSize: 20, color: '#000' }}>₱ </Text>
                                             <Text style={styles.cargoAmountText}>
-                                                {(computedCargo?.cargoAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                {(c.cargoAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </Text>
                                         </View>
                                     </View>
@@ -594,9 +593,9 @@ const PassengerCard = memo(({
 
 export default function Forms({ errorForm }: FormProps) {
     const { passengers, setPassengers, updatePassenger, updateInfant, updateCargo } = usePassengers();
-    const { vessel_id, routeID, isCargoable, approvedBy, setApprovedBy } = useTrip();
+    const { vessel_id, routeID, isCargoable, approvedBy, setApprovedBy, setTotalFare } = useTrip();
     const { passesTypeID, passesTypeCode, passesTypeName } = usePassesType();
-    const { cargoProperties } = useCargo();
+    const { cargoProperties, paxCargoProperty } = useCargo();
 
     const [isLoading, setIsLoading] = useState(true);
     const [passengerType, setPassengerType] = useState<PassTypeProps[] | null>(null);
@@ -831,6 +830,20 @@ export default function Forms({ errorForm }: FormProps) {
         );
     }, [setPassengers]);
 
+    const computedFare = useMemo(() => {
+        return passengers.reduce((sum, p) => {
+            const passengerFare = Number(p.fare || 0);
+            const cargoTotal = (p.cargo ?? []).reduce((cargoSum, c) => {
+                return cargoSum + (Number.isFinite(c.cargoAmount) ? Number(c.cargoAmount) : 0);
+            }, 0);
+            return sum + passengerFare + cargoTotal;
+        }, 0);
+    }, [passengers, paxCargoProperty]);
+
+    useEffect(() => {
+        setTotalFare(computedFare)
+    }, [computedFare])
+
     const hasInfantChecker = useCallback((paxId: number | string, type_id: number) => {
         setPassengers(prev =>
             prev.map(p => {
@@ -869,19 +882,35 @@ export default function Forms({ errorForm }: FormProps) {
         );
     }, [setPassengers]);
 
-    const handleOnUpdateCargo = useCallback((paxId: string | number, cargoIndex: number, keyName: string, keyValue: string, keyId: string, keyValueId: number) => {
+    const handleOnUpdateCargo = useCallback((
+        paxId: string | number,
+        cargoIndex: number,
+        keyName: string,
+        keyValue: string,
+        keyId: string,
+        keyValueId: number
+    ) => {
         setPassengers(prev =>
             prev.map(p => {
                 if (p.id != paxId) return p;
+
+                const updatedCargo = p.cargo.map((c: any, index: number) => {
+                    if (index != cargoIndex) return c;
+                    const merged = { ...c, [keyName]: keyValue, [keyId]: keyValueId };
+                    const { amount, optionID } = ComputedCargoAmount(merged); // compute on the merged object
+                    return { ...merged, cargoAmount: amount, cargoOptionID: optionID };
+                });
+
+                const cargoTotal = updatedCargo.reduce((sum: number, c: any) => sum + (c.cargoAmount ?? 0), 0);
+
                 return {
                     ...p,
-                    cargo: p.cargo.map((c: any, index: number) =>
-                        index != cargoIndex ? c : { ...c, [keyName]: keyValue, [keyId]: keyValueId }
-                    ),
+                    cargo: updatedCargo,
+                    fare: (p.originalFare ?? 0) + cargoTotal,
                 };
             })
         );
-    }, [setPassengers]);
+    }, [setPassengers, ComputedCargoAmount]);
 
     const removeInfant = useCallback((seat: string | number, infantIndex: number) => {
         setPassengers(prev =>
@@ -896,19 +925,44 @@ export default function Forms({ errorForm }: FormProps) {
         setPassengers(prev =>
             prev.map((p, index) => {
                 if (p.seatNumber != seat || index != paxIndex) return p;
-                return { ...p, cargo: p.cargo.filter((_: any, i: number) => i !== cargoIndex) };
+                const updatedCargo = p.cargo.filter((_: any, i: number) => i !== cargoIndex);
+                const cargoTotal = updatedCargo.reduce((sum: number, c: any) => sum + (c.cargoAmount ?? 0), 0);
+                return {
+                    ...p,
+                    cargo: updatedCargo,
+                    fare: (p.originalFare ?? 0) + cargoTotal,
+                };
             })
         );
     }, [setPassengers]);
 
-    const handleCargoQuantity = useCallback((operation: 'add' | 'minus', cargoIndex: number, paxId: string | number) => {
-        const passenger = passengers.find(p => p.id == paxId);
-        if (!passenger) return;
-        const paxCargo = passenger.cargo[cargoIndex];
-        if (!paxCargo) return;
-        const newQty = operation === 'add' ? paxCargo.quantity + 1 : paxCargo.quantity - 1;
-        updateCargo(paxId, cargoIndex, 'quantity', newQty);
-    }, [passengers, updateCargo]);
+    const handleCargoQuantity = useCallback((
+        operation: 'add' | 'minus',
+        cargoIndex: number,
+        paxId: string | number
+    ) => {
+        setPassengers(prev =>
+            prev.map(p => {
+                if (p.id != paxId) return p;
+
+                const updatedCargo = p.cargo.map((c: any, index: number) => {
+                    if (index != cargoIndex) return c;
+                    const newQty = operation === 'add' ? c.quantity + 1 : Math.max(1, c.quantity - 1);
+                    const merged = { ...c, quantity: newQty };
+                    const { amount, optionID } = ComputedCargoAmount(merged);
+                    return { ...merged, cargoAmount: amount, cargoOptionID: optionID };
+                });
+
+                const cargoTotal = updatedCargo.reduce((sum: number, c: any) => sum + (c.cargoAmount ?? 0), 0);
+
+                return {
+                    ...p,
+                    cargo: updatedCargo,
+                    fare: (p.originalFare ?? 0) + cargoTotal,
+                };
+            })
+        );
+    }, [setPassengers, ComputedCargoAmount]);
 
     const handleAddPasses = useCallback(() => {
         const temp = Crypto.randomUUID();
@@ -947,6 +1001,7 @@ export default function Forms({ errorForm }: FormProps) {
         const paxTypeAndLists = async () => {
             try {
                 const passTypesFaresAndLists = await FetchPassengerType();
+                
                 if (!passTypesFaresAndLists.error) {
                     const types: PassTypeProps[] = passTypesFaresAndLists.types.map((type: any) => ({
                         id: type.id, name: type?.name, code: type?.passenger_types_code,
@@ -972,6 +1027,7 @@ export default function Forms({ errorForm }: FormProps) {
                 setIsLoading(false);
             }
         };
+        
         paxTypeAndLists();
     }, []);
 
