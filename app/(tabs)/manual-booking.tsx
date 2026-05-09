@@ -3,6 +3,7 @@ import { FetchTotalBookings } from "@/api/totalBookings";
 import { FetchTrips } from "@/api/trips";
 import CargoComponent from "@/components/cargo";
 import PreLoader from '@/components/preloader';
+import { useBleManager } from '@/context/BLEManager';
 import { CargoProperties, useCargo } from "@/context/cargoProps";
 import { usePassengers } from "@/context/passenger";
 import { useTrip } from "@/context/trip";
@@ -11,7 +12,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Animated, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { Alert, Animated, Modal, PermissionsAndroid, Platform, RefreshControl, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { Device } from 'react-native-ble-plx';
 import { Calendar } from 'react-native-calendars';
 import { GestureHandlerRootView, Pressable } from 'react-native-gesture-handler';
 
@@ -34,6 +36,7 @@ export type TripProps = {
 
 type TotalBookingProps = {
     station: string;
+    station_id?: number;
     color: string;
     count: number;
     accommodationGroup: {
@@ -41,6 +44,8 @@ type TotalBookingProps = {
         passenger: {
             type: string;
             passenger_count: number;
+            pax_fare: number;
+            total_amount: number;
         }[];
     }[];
 }
@@ -64,7 +69,10 @@ export default function ManualBooking() {
     const { id, setRouteID, setVessel, setID, setOrigin, setDestination, setVesselID, setCode, setWebCode, setDepartureTime, setDepartureDate, setMobileCode, setIsCargoable } = useTrip();
     const { passengers, clearPassengers } = usePassengers();
     const { setCargoProperties } = useCargo();
+    const { connectedDevice, connectedDeviceId, bleManager, setConnectedDevice, setConnectedDeviceId } = useBleManager();
     const { height, width } = useWindowDimensions();
+
+    const [stationID, setStationId] = useState<number | null>(null);
     const [bookingType, setBookingType] = useState<string>('Walk-In');
     const [trips, setTrips] = useState<TripProps[] | null>(null);
     const [totalBookings, setTotalBookings] = useState<TotalBookingProps[] | null>(null);
@@ -82,11 +90,30 @@ export default function ManualBooking() {
     const [totalSheetLoading, setTotalSheetLoading] = useState(false);
     const [bottomSheetTripID, setBottomSheetTripID] = useState<number | null>(null);
     const [cargoReady, setCargoReady] = useState(false);
+
+    // ── BLE state ────────────────────────────────────────────────
+    const [bleDevices, setBleDevices] = useState<Device[]>([]);
+    const [bleModalVisible, setBleModalVisible] = useState(false);
+    const [scanning, setScanning] = useState(false);
+    const [bleLoading, setBleLoading] = useState(false);
+    const [showDisconnect, setShowDisconnect] = useState(false);
+
     const translateY = useRef(new Animated.Value(height + 50)).current;
     const fadeInAnim = useRef(new Animated.Value(0)).current;
-
+    const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isMountedRef = useRef(true);
     const tripsRef = useRef(trips);
+
     useEffect(() => { tripsRef.current = trips; }, [trips]);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+            bleManager?.stopDeviceScan();
+        };
+    }, []);
 
     useEffect(() => {
         setContentLoading(true);
@@ -94,28 +121,347 @@ export default function ManualBooking() {
         setTripDate(today);
 
         const date = new Date(today);
-        const options: Intl.DateTimeFormatOptions = {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: 'Asia/Manila'
-        }
-
+        const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Manila' };
         const formattedDate = date.toLocaleDateString('en-US', options);
         const day = date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Asia/Manila' });
-        const queryDate = `${formattedDate} (${day})`;
-
-        setFormattedDate(queryDate);
+        setFormattedDate(`${formattedDate} (${day})`);
         handleFetchTrips(today);
         handleFetchCargoProps();
-    }, [])
+        handleFetchStationID();
+    }, []);
+
+    useEffect(() => {
+        const reConnect = async () => {
+            if (!connectedDeviceId || connectedDevice) return;
+            try {
+                await connectToADevice(connectedDeviceId);
+            } catch {
+                setConnectedDevice(null);
+            } finally {
+                setBleLoading(false);
+            }
+        };
+        reConnect();
+    }, [connectedDeviceId]);
+
+    useEffect(() => {
+        return () => {
+            if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+            bleManager?.stopDeviceScan();
+        };
+    }, []);
 
     useEffect(() => {
         if (!tripsRef.current?.length) {
-            const interval = setInterval(handleTimeChecker, 60 * 60 * 1000)
-            return () => clearInterval(interval)
+            const interval = setInterval(handleTimeChecker, 60 * 60 * 1000);
+            return () => clearInterval(interval);
         }
-    }, [])
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            translateY.stopAnimation();
+            fadeInAnim.stopAnimation();
+            translateY.removeAllListeners();
+            fadeInAnim.removeAllListeners();
+        };
+    }, []);
+
+    const requestBlePermissions = async (): Promise<boolean> => {
+        if (Platform.OS === 'android') {
+            const granted = await PermissionsAndroid.requestMultiple([
+                PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+                PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+                PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            ]);
+            return Object.values(granted).every(s => s === PermissionsAndroid.RESULTS.GRANTED);
+        }
+        return true;
+    };
+
+    const startScan = async () => {
+        const hasPermission = await requestBlePermissions();
+        if (!hasPermission) {
+            Alert.alert('Permission denied', 'Bluetooth permissions are required to print.');
+            return;
+        }
+
+        setBleDevices([]);
+        setScanning(true);
+        setBleModalVisible(true);
+
+        bleManager.startDeviceScan(null, null, (error, device) => {
+            if (error) { setScanning(false); return; }
+            if (device?.name) {
+                setBleDevices(prev => prev.some(d => d.id === device.id) ? prev : [...prev, device]);
+            }
+        });
+
+        scanTimeoutRef.current = setTimeout(() => {
+            bleManager.stopDeviceScan();
+            setScanning(false);
+        }, 10000);
+    };
+
+    const connectToADevice = async (deviceId: string) => {
+        try {
+            setBleLoading(true);
+            bleManager.stopDeviceScan();
+            const connected = await bleManager.connectToDevice(deviceId);
+            await connected.discoverAllServicesAndCharacteristics();
+            setConnectedDevice(connected);
+            setConnectedDeviceId(deviceId);
+            setBleModalVisible(false);
+            Alert.alert('Connected', 'Connected to a device');
+        } catch (error: any) {
+            Alert.alert('Connection failed', error.message);
+        } finally {
+            setBleLoading(false);
+        }
+    };
+
+    const handleDisconnect = useCallback(() => {
+        setConnectedDevice(null);
+        setConnectedDeviceId(null);
+        setShowDisconnect(false);
+    }, []);
+
+    const sendBytesToPrinter = async (printData: Uint8Array) => {
+        if (!connectedDevice) {
+            Alert.alert('No printer connected', 'Please connect to a Bluetooth printer first.');
+            startScan();
+            return;
+        }
+
+        try {
+            setBleLoading(true);
+
+            const services = await connectedDevice.services();
+            let printCharacteristic = null;
+
+            for (const service of services) {
+                const characteristics = await service.characteristics();
+                for (const char of characteristics) {
+                    if (char.isWritableWithResponse || char.isWritableWithoutResponse) {
+                        printCharacteristic = char;
+                        break;
+                    }
+                }
+                if (printCharacteristic) break;
+            }
+
+            if (!printCharacteristic) {
+                Alert.alert('Error', 'No writable characteristic found on this printer.');
+                return;
+            }
+
+            const toBase64 = (chunk: Uint8Array): string => {
+                let binary = '';
+                chunk.forEach(b => (binary += String.fromCharCode(b)));
+                return btoa(binary);
+            };
+
+            const chunkSize = 200;
+            for (let i = 0; i < printData.length; i += chunkSize) {
+                const chunk = printData.slice(i, i + chunkSize);
+                const base64Chunk = toBase64(chunk);
+                if (printCharacteristic.isWritableWithResponse) {
+                    await printCharacteristic.writeWithResponse(base64Chunk);
+                } else {
+                    await printCharacteristic.writeWithoutResponse(base64Chunk);
+                }
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+
+            Alert.alert('Success', 'Report printed successfully!');
+        } catch (error: any) {
+            Alert.alert('Print failed', error.message);
+        } finally {
+            setBleLoading(false);
+        }
+    };
+
+    const buildReportPrintBytes = useCallback((printableData: TotalBookingProps, tripInfo: TripProps | undefined): Uint8Array => {
+        const ESC = 0x1B;
+        const GS  = 0x1D;
+        const LF  = 0x0A;
+
+        const bytes: number[] = [];
+        const push = (...b: number[]) => bytes.push(...b);
+
+        const pushStr = (str: string) => {
+            for (let i = 0; i < str?.length; i++) bytes.push(str.charCodeAt(i) & 0xFF);
+        };
+
+        const padLeft = (text: any, w: number) => {
+            const s = text == null ? '' : String(text);
+            return s.length >= w ? s : ' '.repeat(w - s.length) + s;
+        };
+
+        const padRight = (text: any, w: number) => {
+            const s = text == null ? '' : String(text);
+            return s.length >= w ? s : s + ' '.repeat(w - s.length);
+        };
+
+        const println  = (str: string) => { pushStr(str); push(LF); };
+        const alignCenter = () => push(ESC, 0x61, 0x01);
+        const alignLeft   = () => push(ESC, 0x61, 0x00);
+        const boldOn      = () => push(ESC, 0x45, 0x01);
+        const boldOff     = () => push(ESC, 0x45, 0x00);
+        const fontNormal  = () => push(GS, 0x21, 0x00);
+
+        push(ESC, 0x40);
+        alignCenter();
+        boldOn();
+        println('LEOPARDS');
+        println('MOTORBOAT SERVICE');
+        push(LF);
+        boldOff();
+        println('BOOKING REPORT');
+        println('--------------------------------');
+
+        alignLeft();
+        println(padRight('Station:', 16) + padLeft(printableData.station ?? '', 16));
+
+        if (tripInfo) {
+            println(padRight('Route:', 16) + padLeft(tripInfo.mobile_code ?? '', 16));
+            println(padRight('Vessel:', 16) + padLeft(tripInfo.vessel ?? '', 16));
+            println(padRight('Departure:', 16) + padLeft(tripInfo.departure ?? '', 16));
+        }
+
+        println('--------------------------------');
+
+        const bClassGroup = printableData.accommodationGroup.filter(g =>
+            ['Business Class', 'B-Class', 'B Class', 'Deluxe', 'Deluxe Class'].includes(g.accommodation)
+        );
+
+        boldOn(); println('B-CLASS ACCOMMODATION:'); boldOff();
+
+        if (bClassGroup.length > 0) {
+            let bClassTotal = 0;
+            bClassGroup.forEach(g => {
+                g.passenger.forEach(p => {
+                    println(
+                        padRight(`${p.type}`, 14) +
+                        padRight(`x${p.passenger_count}`, 8) +
+                        padLeft(`P${Number(p.total_amount).toFixed(2)}`, 10)
+                    );
+                    bClassTotal += Number(p.total_amount);
+                });
+            });
+            push(LF);
+            println(padRight('  Subtotal:', 24) + padLeft(`P${bClassTotal.toFixed(2)}`, 8));
+        } else {
+            println('  No booking');
+        }
+
+        push(LF);
+        println('--------------------------------');
+
+        const touristGroup = printableData.accommodationGroup.filter(g => g.accommodation === 'Tourist');
+
+        boldOn(); println('TOURIST ACCOMMODATION:'); boldOff();
+
+        if (touristGroup.length > 0) {
+            let touristTotal = 0;
+            touristGroup.forEach(g => {
+                g.passenger.forEach(p => {
+                    println(
+                        padRight(`${p.type}`, 14) +
+                        padRight(`x${p.passenger_count}`, 8) +
+                        padLeft(`P${Number(p.total_amount).toFixed(2)}`, 10)
+                    );
+                    touristTotal += Number(p.total_amount);
+                });
+            });
+            push(LF);
+            println(padRight('  Subtotal:', 24) + padLeft(`P${touristTotal.toFixed(2)}`, 8));
+        } else {
+            println('  No booking');
+        }
+
+        push(LF);
+        println('--------------------------------');
+
+        const cargoGroup = (printableData as any).cargo ?? [];
+
+        boldOn(); println('CARGO:'); boldOff();
+
+        if (cargoGroup.length > 0) {
+            let cargoTotal = 0;
+            cargoGroup.forEach((c: any) => {
+                const desc = c.cargoType === 'Rolling Cargo'
+                    ? `${c.cargoBrand} ${c.cargoSpecification}`
+                    : c.parcelCategory;
+                println(`${c.quantity}x ${desc} - P${Number(c.cargoAmount).toFixed(2)}`);
+                cargoTotal += Number(c.cargoAmount);
+            });
+            push(LF);
+            println(padRight('  Subtotal:', 24) + padLeft(`P${cargoTotal.toFixed(2)}`, 8));
+        } else {
+            println('  No booking');
+        }
+
+        push(LF);
+        println('--------------------------------');
+
+        const bTotal = bClassGroup.flatMap(g => g.passenger).reduce((s, p) => s + Number(p.total_amount), 0);
+        const tTotal = touristGroup.flatMap(g => g.passenger).reduce((s, p) => s + Number(p.total_amount), 0);
+        const cTotal = cargoGroup.reduce((s: number, c: any) => s + Number(c.cargoAmount ?? 0), 0);
+        const grandTotal = bTotal + tTotal + cTotal;
+
+        boldOn(); println('SUMMARY:'); boldOff();
+        println(padRight('B-Class Total:', 20)  + padLeft(`P${bTotal.toFixed(2)}`, 12));
+        println(padRight('Tourist Total:', 20)   + padLeft(`P${tTotal.toFixed(2)}`, 12));
+        println(padRight('Cargo Total:', 20)     + padLeft(`P${cTotal.toFixed(2)}`, 12));
+        println('--------------------------------');
+        boldOn();
+        println(padRight('GRAND TOTAL:', 20) + padLeft(`P${grandTotal.toFixed(2)}`, 12));
+        boldOff();
+        println('--------------------------------');
+
+        fontNormal();
+        push(LF, LF, LF, LF, LF, LF);
+        push(GS, 0x56, 0x41, 0x00);
+
+        return new Uint8Array(bytes);
+    }, []);
+
+    const handlePrintReport = useCallback(async () => {
+        if (!stationID) {
+            Alert.alert('Invalid', 'Station is not set yet.');
+            return;
+        }
+
+        if (!totalBookings || totalBookings.length === 0) {
+            Alert.alert('Invalid', 'No booking data available. Please load a trip first.');
+            return;
+        }
+
+        const printableData = totalBookings.find(t => t.station_id == stationID);
+
+        if (!printableData) {
+            Alert.alert('Invalid', 'No booking data found for this station.');
+            return;
+        }
+
+        if (!connectedDevice) {
+            Alert.alert('No printer connected', 'Please connect to a Bluetooth printer first.');
+            startScan();
+            return;
+        }
+
+        const tripInfo = trips?.find(t => t.trip_id === bottomSheetTripID);
+        const reportBytes = buildReportPrintBytes(printableData, tripInfo);
+        await sendBytesToPrinter(reportBytes);
+    }, [stationID, totalBookings, connectedDevice, trips, bottomSheetTripID, buildReportPrintBytes]);
+
+    const handleFetchStationID = useCallback(async () => {
+        if (stationID) return;
+        const storedStationID = await AsyncStorage.getItem('stationID');
+        if (!storedStationID) return;
+        setStationId(Number(storedStationID));
+    }, []);
 
     const handleFetchCargoProps = async () => {
         try {
@@ -127,12 +473,10 @@ export default function ManualBooking() {
         } catch (error) {
             console.log('Error', error);
         }
-    }
+    };
 
     const handleTimeChecker = useCallback(() => {
-        const dateTime = new Date(
-            new Date().toLocaleString("en-CA", { timeZone: "Asia/Manila" })
-        );
+        const dateTime = new Date(new Date().toLocaleString("en-CA", { timeZone: "Asia/Manila" }));
         const toISODate = dateTime.toLocaleDateString("en-CA", { timeZone: 'Asia/Manila' });
 
         setTrips(prev => {
@@ -140,105 +484,70 @@ export default function ManualBooking() {
             return prev.map(trip => {
                 if (toISODate != trip.specific_days) return trip;
                 if (!trip.departure_time) return trip;
-
                 const parts = trip.departure_time.split(":");
                 if (parts.length < 2) return trip;
-
                 const hours = Number(parts[0]);
                 const minutes = Number(parts[1]);
-
                 if (isNaN(hours) || isNaN(minutes)) return trip;
-
                 const tripTime = new Date(dateTime);
                 tripTime.setHours(hours, minutes, 0, 0);
-
-                if (dateTime > tripTime && !trip.hasDeparted) {
-                    return { ...trip, hasDeparted: true }
-                }
+                if (dateTime > tripTime && !trip.hasDeparted) return { ...trip, hasDeparted: true };
                 return trip;
             });
         });
-    }, [])
+    }, []);
 
     const handleRefresh = () => {
         setRefresh(true);
         handleFetchCargoProps();
         setBookingType('Walk-In');
-
         setTimeout(() => {
             const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
             setTripDate(today);
             const date = new Date(today);
-            const options: Intl.DateTimeFormatOptions = {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                timeZone: 'Asia/Manila'
-            }
-
+            const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Manila' };
             const formattedDate = date.toLocaleDateString('en-US', options);
             const day = date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Asia/Manila' });
-            const queryDate = `${formattedDate} (${day})`;
-
-            setFormattedDate(queryDate);
+            setFormattedDate(`${formattedDate} (${day})`);
             setOnDateChange(today);
             handleFetchTrips(today);
             setRefresh(false);
         }, 1500);
-    }
+    };
 
     const handleOnDateSelect = (selectedDate: string) => {
         setContentLoading(true);
         const selected = new Date(selectedDate).toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
         setTripDate(selected);
         const date = new Date(selected);
-        const options: Intl.DateTimeFormatOptions = {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            timeZone: 'Asia/Manila'
-        }
-
+        const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Manila' };
         const formattedDate = date.toLocaleDateString('en-US', options);
         const day = date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'Asia/Manila' });
-        const queryDate = `${formattedDate} (${day})`;
-
-        const dateSelected = new Date(selectedDate).toISOString().split('T')[0]
-        setFormattedDate(queryDate);
+        const dateSelected = new Date(selectedDate).toISOString().split('T')[0];
+        setFormattedDate(`${formattedDate} (${day})`);
         setOnDateChange(dateSelected);
         handleFetchTrips(dateSelected);
-    }
+    };
 
     const handleFetchTrips = async (queryDate: string) => {
         try {
             const tripsFetch = await FetchTrips(queryDate);
-
-            if (!tripsFetch || !tripsFetch.data) {
-                throw new Error("Invalid API response");
-            }
+            if (!tripsFetch || !tripsFetch.data) throw new Error("Invalid API response");
 
             function verifyTime(timeString: string, specificDay: string): 'scheduled' | 'departed' {
                 if (!timeString || !specificDay) return 'scheduled';
-
                 const currentTime = new Date();
                 const toISODate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-
                 if (toISODate !== specificDay) return 'scheduled';
-
                 const parts = timeString.split(':');
                 if (parts.length < 2) return 'scheduled';
-
                 const hours = Number(parts[0]);
                 const minutes = Number(parts[1]);
-
                 if (isNaN(hours) || isNaN(minutes)) return 'scheduled';
-
                 const tripTime = new Date(currentTime);
                 tripTime.setHours(hours, minutes, 0, 0);
-
                 const departureAllowance = new Date(tripTime);
                 departureAllowance.setHours(departureAllowance.getHours() + 1);
-
                 return currentTime > departureAllowance ? 'departed' : 'scheduled';
             }
 
@@ -246,7 +555,6 @@ export default function ManualBooking() {
                 const tripsData: TripProps[] = tripsFetch.data.map((t: any) => {
                     const departureTime = t.trip?.departure_time ?? '';
                     const status = departureTime ? verifyTime(departureTime, t.specific_days) : 'scheduled';
-
                     return {
                         trip_id: t.id,
                         vessel: t.trip?.vessel?.name ?? 'N/A',
@@ -260,49 +568,36 @@ export default function ManualBooking() {
                         web_code: t.trip?.route?.web_code ?? '',
                         code: t.trip?.vessel?.code ?? '',
                         departure: departureTime
-                            ? new Date(`1970-01-01T${departureTime}`).toLocaleTimeString('en-US', {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true
-                            })
+                            ? new Date(`1970-01-01T${departureTime}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
                             : '',
                         isCargoable: t.trip?.vessel?.is_cargoable ?? 0,
                         hasDeparted: status === 'departed'
                     };
                 });
-
                 setTrips(tripsData);
-                if (tripsData.length > 0) {
-                    setBottomSheetTripID(tripsData[0].trip_id ?? null);
-                }
+                if (tripsData.length > 0) setBottomSheetTripID(tripsData[0].trip_id ?? null);
             }
         } catch (error: any) {
             Alert.alert("Error", error.message || "Something went wrong");
         } finally {
             setContentLoading(false);
         }
-    }
+    };
 
     const handleSaveTrip = useCallback(async (vesselName: string, trip_id: number, routeId: number, origin: string, destination: string, mobileCode: string, code: string, web_code: string, departureTime: string, vesselID: number, cargoable: number, departureDate: string) => {
         setLoading(true);
-
         const stationID = await AsyncStorage.getItem('stationID');
-
         if (!stationID) {
             setLoading(false);
             Alert.alert('Invalid', 'Station is not set yet.');
             return;
         }
-
         setTimeout(() => {
             if (trip_id != id) {
-                passengers.forEach(passenger => {
-                    seatRemoval(passenger?.seatNumber, id)
-                });
+                passengers.forEach(passenger => { seatRemoval(passenger?.seatNumber, id); });
                 setVessel('');
                 clearPassengers();
             }
-
             setVessel(vesselName);
             setID(trip_id);
             setVesselID(vesselID);
@@ -316,78 +611,46 @@ export default function ManualBooking() {
             setDepartureTime(departureTime);
             setDepartureDate(departureDate);
             setIsCargoable(cargoable);
-
             router.push('/seatPlan');
         }, 100);
-    }, [
-        id, passengers, clearPassengers, setVessel, setID, setVesselID, setRouteID,
-        setOrigin, setDestination, setMobileCode, setCode, setWebCode,
-        setDepartureTime, setDepartureDate, setIsCargoable
-    ])
+    }, [id, passengers, clearPassengers, setVessel, setID, setVesselID, setRouteID, setOrigin, setDestination, setMobileCode, setCode, setWebCode, setDepartureTime, setDepartureDate, setIsCargoable]);
 
     const toggleSheet = () => {
-        if (!bottomSheetTripID) {
-            Alert.alert('Oops', 'No trip available');
-            return;
-        }
-
+        if (!bottomSheetTripID) { Alert.alert('Oops', 'No trip available'); return; }
         handleFetchTotalBookings(bottomSheetTripID);
         setTotalSheetLoading(true);
         setExpanded(true);
-
-        Animated.spring(translateY, {
-            toValue: height / 9,
-            useNativeDriver: true
-        }).start();
-        Animated.timing(fadeInAnim, {
-            toValue: 1,
-            duration: 500,
-            useNativeDriver: true
-        }).start();
-    }
+        Animated.spring(translateY, { toValue: height / 9, useNativeDriver: true }).start();
+        Animated.timing(fadeInAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+    };
 
     const closeToggle = () => {
         setExpanded(false);
-
-        Animated.spring(translateY, {
-            toValue: height + 50,
-            useNativeDriver: true
-        }).start();
-        Animated.timing(fadeInAnim, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: true
-        }).start();
-    }
+        Animated.spring(translateY, { toValue: height + 50, useNativeDriver: true }).start();
+        Animated.timing(fadeInAnim, { toValue: 0, duration: 500, useNativeDriver: true }).start();
+    };
 
     const handleFetchTotalBookings = async (trip_id: number | null) => {
         try {
             const totalBookingFetch = await FetchTotalBookings(trip_id);
-
             if (!totalBookingFetch.error) {
                 const totalBookingFetchData: TotalBookingProps[] = totalBookingFetch.data.map((t: any) => ({
                     station: t.station,
+                    station_id: t.station_id,
                     count: t.count,
                     color: t.color,
                     accommodationGroup: t.accommodations.map((a: any) => ({
                         accommodation: a.accommodation,
                         passenger: a.passenger.map((p: any) => ({
                             type: p.type,
-                            passenger_count: p.passenger_count
+                            passenger_count: p.passenger_count,
+                            pax_fare: p.pax_fare,
+                            total_amount: p.total_amount
                         }))
                     }))
                 }));
-
-                const totalBookingPaxTypes: PaxTypeProps[] = totalBookingFetch.paxTypes.map((p: any) => ({
-                    paxTypeID: p.id,
-                    paxType: p.passenger_types_code
-                }));
-
-                const totalBookingAccomTypes: AccommodationProps[] = totalBookingFetch.accommodationTypes.map((a: any) => ({
-                    accomtTypeID: a.id,
-                    accomType: a.name
-                }));
-
+                const totalBookingPaxTypes: PaxTypeProps[] = totalBookingFetch.paxTypes.map((p: any) => ({ paxTypeID: p.id, paxType: p.passenger_types_code }));
+                const totalBookingAccomTypes: AccommodationProps[] = totalBookingFetch.accommodationTypes.map((a: any) => ({ accomtTypeID: a.id, accomType: a.name }));
                 setTotalPayingCount(totalBookingFetch.total_paying);
                 setTotalBookings(totalBookingFetchData);
                 setPaxTypes(totalBookingPaxTypes);
@@ -399,31 +662,69 @@ export default function ManualBooking() {
         } finally {
             setTotalSheetLoading(false);
         }
-    }
-
-    useEffect(() => {
-        return () => {
-            translateY.stopAnimation();
-            fadeInAnim.stopAnimation();
-            translateY.removeAllListeners();
-            fadeInAnim.removeAllListeners();
-        };
-    }, []);
+    };
 
     return (
         <GestureHandlerRootView style={{ backgroundColor: '#fdfdfd', flex: 1, position: 'relative' }}>
+            <PreLoader loading={bleLoading} />
+
+            <Modal transparent animationType="slide" visible={bleModalVisible}>
+                <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: height * 0.6 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Select Printer</Text>
+                            <TouchableOpacity onPress={() => { bleManager?.stopDeviceScan(); setBleModalVisible(false); }}>
+                                <Ionicons name="close" size={24} color="#cf2a3a" />
+                            </TouchableOpacity>
+                        </View>
+                        {scanning && (
+                            <Text style={{ color: '#cf2a3a', textAlign: 'center', marginBottom: 10 }}>Scanning for devices...</Text>
+                        )}
+                        <ScrollView>
+                            {bleDevices.length === 0 && !scanning ? (
+                                <Text style={{ color: '#999', textAlign: 'center', marginTop: 20 }}>No devices found. Try scanning again.</Text>
+                            ) : (
+                                bleDevices.map(device => (
+                                    <TouchableOpacity
+                                        key={device?.id}
+                                        onPress={() => connectToADevice(device.id)}
+                                        style={{ padding: 15, borderBottomColor: '#dadada', borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <Ionicons name="print" size={20} color="#cf2a3a" />
+                                        <View>
+                                            <Text style={{ fontWeight: 'bold' }}>{device.name}</Text>
+                                            <Text style={{ fontSize: 12, color: '#999' }}>{device?.id}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))
+                            )}
+                        </ScrollView>
+                        <TouchableOpacity
+                            onPress={startScan}
+                            style={{ backgroundColor: '#cf2a3a', padding: 12, borderRadius: 8, marginTop: 15 }}>
+                            <Text style={{ color: '#fff', textAlign: 'center', fontWeight: 'bold', fontSize: 17 }}>
+                                {scanning ? 'Scanning...' : 'Scan Again'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {showDisconnect && (
+                <View style={{ backgroundColor: '#fff', width: 180, height: 50, padding: 10, justifyContent: 'center', borderRadius: 8, elevation: 5, position: 'absolute', zIndex: 50, right: 20, top: 70 }}>
+                    <TouchableOpacity onPress={handleDisconnect} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <MaterialCommunityIcons name={'printer-off-outline'} color={'#000'} size={18} />
+                        <Text style={{ color: '#000' }}>Disconnect Printer</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
             {calendar && (
                 <Modal transparent animationType="slide" onRequestClose={() => setCalendar(false)}>
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
                         <View style={{ width: '80%', backgroundColor: '#fff', padding: 20, borderRadius: 10 }}>
                             <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Select Date</Text>
                             <Calendar
-                                minDate={new Date().toISOString().split('T')[0]}
-                                onDayPress={(day) => {
-                                    setTripDate(day.dateString);
-                                    setCalendar(false);
-                                    handleOnDateSelect(day.dateString);
-                                }}
+                                onDayPress={(day) => { setTripDate(day.dateString); setCalendar(false); handleOnDateSelect(day.dateString); }}
                                 markedDates={{ [tripDate]: { selected: true, selectedColor: '#CF2A3A' } }}
                             />
                             <TouchableOpacity onPress={() => setCalendar(false)} style={{ marginTop: 20, padding: 10, backgroundColor: '#CF2A3A', borderRadius: 5 }}>
@@ -437,6 +738,13 @@ export default function ManualBooking() {
             <View style={{ paddingTop: 30, height: 100, backgroundColor: '#cf2a3a', paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>Manual Booking</Text>
                 <View style={{ flexDirection: 'row', gap: 15, alignItems: 'center' }}>
+                    {connectedDevice && (
+                        <TouchableOpacity onPress={() => setShowDisconnect(!showDisconnect)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Ionicons name="print" size={18} color="#fff" />
+                            <Text style={{ color: '#fff', fontSize: 12 }}>{connectedDevice.name}</Text>
+                            <Ionicons name="chevron-down" color="#fff" size={16} />
+                        </TouchableOpacity>
+                    )}
                     <TouchableOpacity onPress={() => setCalendar(true)}>
                         <Ionicons name="calendar" size={25} color={'#fff'} />
                     </TouchableOpacity>
@@ -460,7 +768,7 @@ export default function ManualBooking() {
                 {bookingType != 'Cargo' && (
                     <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 15, paddingTop: 20 }}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                            <Text style={{ fontSize: 18, fontWeight: 'bold',color: '#000' }}>Available Trip</Text>
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Available Trip</Text>
                             <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#000' }}>{formattedDate ? formattedDate.split('(')[0] : ''}</Text>
                         </View>
                         <PreLoader loading={loading} />
@@ -474,8 +782,7 @@ export default function ManualBooking() {
                     )}
                     showsVerticalScrollIndicator={false}
                     nestedScrollEnabled={true}
-                    style={{ flex: 1 }}
-                >
+                    style={{ flex: 1 }}>
                     {bookingType == 'Walk-In' ? (
                         <View style={{ paddingHorizontal: 20, minHeight: height }}>
                             {contentLoading ? (
@@ -513,7 +820,6 @@ export default function ManualBooking() {
                                                     <Ionicons name="chevron-forward" size={18} />
                                                 </View>
                                             ))}
-                                            
                                         </>
                                     )}
                                 </>
@@ -521,11 +827,7 @@ export default function ManualBooking() {
                         </View>
                     ) : (
                         <View style={{ flex: 1 }}>
-                            {cargoReady ? (
-                                <CargoComponent dateChange={onDateChange} />
-                            ) : (
-                                <PreLoader loading={true} />
-                            )}
+                            {cargoReady ? <CargoComponent dateChange={onDateChange} /> : <PreLoader loading={true} />}
                         </View>
                     )}
                 </ScrollView>
@@ -537,12 +839,12 @@ export default function ManualBooking() {
                 </Animated.View>
             )}
 
-            <Animated.View style={{ position: 'absolute', bottom: 0, backgroundColor: '#fff', width, height: height * 0.9, transform: [{ translateY }], borderTopRightRadius: 20, borderTopLeftRadius: 20, zIndex: 10 }}>
+            <Animated.View style={{ position: 'absolute', bottom: 0, backgroundColor: '#fff', width, height: height * 0.85, transform: [{ translateY }], borderTopRightRadius: 20, borderTopLeftRadius: 20, zIndex: 10 }}>
                 <View style={{ padding: 10, flex: 1 }}>
                     {totalSheetLoading ? (
                         <PreLoader loading={totalSheetLoading} />
                     ) : (
-                        <>
+                        <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                                 <View>
                                     {trips && trips.length > 0 && (
@@ -554,7 +856,7 @@ export default function ManualBooking() {
                                 </TouchableOpacity>
                             </View>
                             {trips && trips.length > 0 ? (
-                                <>
+                                <View style={{ height: '80%' }}>
                                     <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap', paddingTop: 5 }}>
                                         {trips.map((trip) => (
                                             <TouchableOpacity
@@ -568,7 +870,7 @@ export default function ManualBooking() {
                                             </TouchableOpacity>
                                         ))}
                                     </View>
-                                    <ScrollView style={{ marginTop: 20 }} showsVerticalScrollIndicator={false}>
+                                    <ScrollView style={{ marginTop: 20, flex: 1 }} showsVerticalScrollIndicator={false}>
                                         <Text style={{ fontWeight: 'bold', paddingBottom: 10, fontSize: 18, color: '#cf2a3a', marginBottom: 10, borderBottomColor: '#b4b4b4ff', borderBottomWidth: 1 }}>{totalPayingCount} TOTAL PAYING PASSENGERS</Text>
                                         <View style={{ gap: 15 }}>
                                             {totalBookings?.map((tb, index) => (
@@ -576,7 +878,7 @@ export default function ManualBooking() {
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                                                         <View style={{ backgroundColor: tb.color, height: 15, width: 15 }} />
                                                         <Text style={{ fontWeight: 'bold', fontSize: 17, color: '#000' }}>{tb.station}</Text>
-                                                        <Text style={{ color: '#5c5c5cff', fontSize: 12, }}>{`[${tb.count} paying passenger/s]`}</Text>
+                                                        <Text style={{ color: '#5c5c5cff', fontSize: 12 }}>{`[${tb.count} paying passenger/s]`}</Text>
                                                     </View>
                                                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 5 }}>
                                                         {accomTypes?.map((accomType) => (
@@ -586,7 +888,7 @@ export default function ManualBooking() {
                                                                     .filter(g => g.accommodation == accomType.accomType)
                                                                     .map((accom, accomIndex) => (
                                                                         <View key={accomIndex}>
-                                                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                                                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5, width: '90%' }}>
                                                                                 {paxTypes?.map((type) => {
                                                                                     const matches = accom.passenger.filter(pax => pax.type == type.paxType);
                                                                                     if (matches.length < 1) return null;
@@ -611,13 +913,25 @@ export default function ManualBooking() {
                                             ))}
                                         </View>
                                     </ScrollView>
-                                </>
+
+                                    <TouchableOpacity
+                                        onPress={handlePrintReport}
+                                        disabled={bleLoading || totalBookings.length == 0}
+                                        style={{ backgroundColor: '#cf2a3a', paddingVertical: 14, width: '100%', borderRadius: 5, alignItems: 'center', alignSelf: 'center', marginTop: 10, opacity: bleLoading || totalBookings.length == 0 ? 0.6 : 1 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <Ionicons name="print" size={20} color="#fff" />
+                                            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+                                                {connectedDevice ? 'Print Report' : 'Connect & Print Report'}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                </View>
                             ) : (
                                 <View style={{ flex: 1, justifyContent: 'center' }}>
                                     <Text style={{ color: '#7A7A85', textAlign: 'center' }}>No Available Trips</Text>
                                 </View>
                             )}
-                        </>
+                        </View>
                     )}
                 </View>
             </Animated.View>

@@ -5,7 +5,7 @@ import { usePassengers } from '@/context/passenger';
 import { useTrip } from '@/context/trip';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, PermissionsAndroid, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Device } from 'react-native-ble-plx';
 import QRCode from 'react-native-qrcode-svg';
@@ -35,6 +35,12 @@ export default function TicketGenerator() {
     const [bleLoading, setBleLoading] = useState(false);
     const [showDisconnect, setShowDisconnect] = useState(false);
 
+
+    const totalpax = useMemo(() => {
+        return passengers.filter(p => 
+            p.passType.toLowerCase() != 'infant' && p.passType.toLowerCase() != 'passes'
+        );
+    }, [passengers]);
 
     const handleDisconnect = useCallback(() => {
         setConnectedDevice(null);
@@ -370,6 +376,15 @@ export default function TicketGenerator() {
             )
             println('--------------------------------');
         }
+
+        boldOn();
+        println(
+            padRight('TOTAL PAYING PAX:', 16) +
+            padLeft(`${totalpax.length}`, 16)
+        )
+        boldOff();
+        
+        println('--------------------------------');
 
         const cargos = passengers.flatMap(p => p?.hasCargo ? p?.cargo : []);
         if (cargos?.length > 0) {

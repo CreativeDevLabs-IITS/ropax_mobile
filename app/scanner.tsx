@@ -55,13 +55,18 @@ export default function QRScanner() {
         const centerX = points.reduce((sum, p) => sum + p.x, 0) / points.length;
         const centerY = points.reduce((sum, p) => sum + p.y, 0) / points.length;
 
+        const buffer = FRAME_SIZE * 0.4; 
+
+
         const frameLeft = (width - FRAME_SIZE) / 2;
         const frameRigt = frameLeft + FRAME_SIZE;
         const frameTop = (height - FRAME_SIZE) / 2;
         const frameBottom = frameTop + FRAME_SIZE;
 
-        const isInnFrame = centerX >= frameLeft && centerX <= frameRigt &&
-                                      centerY >= frameTop && centerY <= frameBottom;
+        const isInnFrame = centerX >= frameLeft - buffer &&
+                            centerX <= frameRigt + buffer &&
+                            centerY >= frameTop - buffer && 
+                            centerY <= frameBottom + buffer;
         
         if(isInnFrame) {
             setScanned(true);
