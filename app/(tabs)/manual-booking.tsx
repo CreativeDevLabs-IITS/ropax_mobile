@@ -891,7 +891,7 @@ export default function ManualBooking() {
                                                                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5, width: '90%' }}>
                                                                                 {paxTypes?.map((type) => {
                                                                                     const matches = accom.passenger.filter(pax => pax.type == type.paxType);
-                                                                                    if (matches.length < 1) return null;
+                                                                                    if (matches?.length < 1) return null;
                                                                                     return (
                                                                                         <View key={type.paxTypeID}>
                                                                                             {matches.map((p, pIndex) => (
@@ -916,8 +916,8 @@ export default function ManualBooking() {
 
                                     <TouchableOpacity
                                         onPress={handlePrintReport}
-                                        disabled={bleLoading || totalBookings.length == 0}
-                                        style={{ backgroundColor: '#cf2a3a', paddingVertical: 14, width: '100%', borderRadius: 5, alignItems: 'center', alignSelf: 'center', marginTop: 10, opacity: bleLoading || totalBookings.length == 0 ? 0.6 : 1 }}>
+                                        disabled={bleLoading || totalBookings?.length == 0}
+                                        style={{ backgroundColor: '#cf2a3a', paddingVertical: 14, width: '100%', borderRadius: 5, alignItems: 'center', alignSelf: 'center', marginTop: 10, opacity: bleLoading || totalBookings?.length == 0 ? 0.6 : 1 }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                             <Ionicons name="print" size={20} color="#fff" />
                                             <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>

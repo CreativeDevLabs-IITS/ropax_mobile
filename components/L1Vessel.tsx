@@ -15,9 +15,6 @@ import PreLoader from './preloader';
 
 
 const { height } = Dimensions.get('window');
-
-const specialSeatList = ['BC1', 'BC2', 'BC3', 'BC4', 'BC5', 'P1', 'P2', 'P4', 'P3', 'P5', 'P6', 'P7', 'P8'];
-const specialSeats = new Set(specialSeatList);
 const bClassNames = ['Business Class', 'B Class', 'B-Class'];
 
 
@@ -102,7 +99,6 @@ export const SeatPlan: React.FC<SeatProps> = React.memo(({ start, limit, skipPat
                             backgroundColor:
                                 booked ? booked?.station.color
                                 : isPassenger ? '#BA68C8'
-                                : specialSeats.has(seatKey) && !inChannel ? '#E6E2C6'
                                 : inChannel ? '#e6d1e9ff'
                                 : 'transparent'
                         }}>

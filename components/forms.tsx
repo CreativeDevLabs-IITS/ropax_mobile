@@ -64,6 +64,7 @@ type PassengerCardProps = {
     isCargoable: number;
     routeID: number;
     vessel_id: number;
+    isSpecialInf: boolean;
     suggestions: { [key: string]: any[] };
     infantSuggestions: { [key: string]: any[] };
     formattedPaxList: { id: string; title: string }[];
@@ -98,7 +99,7 @@ const PassengerCard = memo(({
     p, index, hasPasses, errorForm, paxsengerTypes, passengerType,
     cargoProperties, cargoComputeMap, isCargoable,
     suggestions, infantSuggestions, formattedPaxList, formattedInfantList,
-    dropdownController, initializedRefs, InfantDropController, initializedInfantRefs,
+    dropdownController, initializedRefs, InfantDropController, initializedInfantRefs, isSpecialInf,
     onPassesRemove, onPaxTypeSelect, onFareChange, onSearch, onInfantSearch,
     onAutoComplete, onInfantAutoComplete, onClearAutoComplete, onInfantClearAutoComplete,
     onUpdatePassenger, onUpdateInfant, onUpdateCargo, onUpdateCargoValue,
@@ -271,14 +272,16 @@ const PassengerCard = memo(({
 
             <View style={styles.checkboxRow}>
                 <View style={styles.checkboxGroup}>
-                    <TouchableOpacity
-                        disabled={p.passType === 'Child'}
-                        onPress={() => onHasInfantChecker(p.id, infantTypeId)}
-                        style={styles.checkboxItem}
-                    >
-                        <Checkbox status={p.hasInfant ? 'checked' : 'unchecked'} color='#cf2a3a' uncheckedColor="#999" />
-                        <Text style={styles.checkboxLabel}>Infant</Text>
-                    </TouchableOpacity>
+                    {isSpecialInf == false && (
+                        <TouchableOpacity
+                            disabled={p.passType === 'Child'}
+                            onPress={() => onHasInfantChecker(p.id, infantTypeId)}
+                            style={styles.checkboxItem}
+                        >
+                            <Checkbox status={p.hasInfant ? 'checked' : 'unchecked'} color='#cf2a3a' uncheckedColor="#999" />
+                            <Text style={styles.checkboxLabel}>Infant</Text>
+                        </TouchableOpacity>
+                    )}
                     {isCargoable !== 0 && (
                         <TouchableOpacity onPress={() => onHasCargoChecker(p.id)} style={styles.checkboxItem}>
                             <Checkbox status={p.hasCargo ? 'checked' : 'unchecked'} color='#cf2a3a' uncheckedColor="#999" />
@@ -287,6 +290,8 @@ const PassengerCard = memo(({
                     )}
                 </View>
             </View>
+
+            
 
             {p.hasInfant && (
                 <View style={styles.infantSection}>
@@ -1081,6 +1086,7 @@ export default function Forms({ errorForm }: FormProps) {
                                 onRemoveInfant={removeInfant}
                                 onRemoveCargo={removeCargo}
                                 onCargoQuantity={handleCargoQuantity}
+                                isSpecialInf={specialInfantPax.some(inf => inf.id === p.id)}
                             />
                         ))}
 

@@ -186,10 +186,10 @@ export default function SeatPlan() {
             setParentLoading: setIsLoading,
         };
 
-        if (vesselLower === 'mbca leopards sea runner' || vesselLower === 'sea runner') {
+        if (vesselLower.trim() === 'mbca leopards sea runner' || vesselLower === 'sea runner') {
             return <SRVessel {...sharedProps} />;
         }
-        if (vesselLower === 'mv leopards 1' || vesselLower === 'leopards 1') {
+        if (vesselLower.trim() === 'mv leopards 1' || vesselLower === 'leopards 1') {
             return <L1Vessel {...sharedProps} />;
         }
         return <L2Vessel {...sharedProps} />;
