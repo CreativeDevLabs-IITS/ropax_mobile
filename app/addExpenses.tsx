@@ -5,6 +5,7 @@ import { FetchTrips } from '@/api/trips';
 import PreLoader from '@/components/preloader';
 import { useExpense } from '@/context/expense';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { router } from 'expo-router';
@@ -276,10 +277,15 @@ export default function AddExpenses() {
     const addExpenseForm = () => {
         setExpenses(prev => {
             const lastId = prev[prev.length - 1].id;
-
-            return [...prev, { id: lastId + 1, trip_schedule_id: 0, description: '', amount: 0, expense_category_id: 0 }]
-        })
-    }
+            return [...prev, { 
+                id: lastId + 1, 
+                trip_schedule_id: selectedTrip,  // ← inherit current selection
+                description: '', 
+                amount: 0, 
+                expense_category_id: 0 
+            }];
+        });
+    };
 
     const removeExpenseForm = (formID: number) => {
         const remainingForm = expenses.filter((e) => e.id != formID);
@@ -287,6 +293,13 @@ export default function AddExpenses() {
     }
 
     const handleSaveExpense = async () => {
+        const station_id = await AsyncStorage.getItem('stationID');
+
+        if(!station_id) {
+            Alert.alert('Error', 'Please set station and try again.');
+            return;
+        }
+
         setSaveExpenseSpinner(true);
         
         if (!expenses || expenses.length === 0) {
@@ -306,7 +319,7 @@ export default function AddExpenses() {
         }
 
         try {
-            const response = await SaveExpenses(expenses);
+            const response = await SaveExpenses(expenses, station_id);
             if(response.success) {
                 Alert.alert('Success', response.message, [{
                     text: 'OK',
@@ -363,14 +376,14 @@ export default function AddExpenses() {
             ) : (
                 <View style={{ flex: 1, marginTop: 20 }}>
                     <View style={{ paddingHorizontal: 20 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', borderRadius: 10, padding: 20, elevation: 5 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 }}>
                             <View style={{ flexDirection: 'column' }}>
-                                <Text style={{ fontSize: 12 }}>Date:</Text>
+                                <Text style={{ fontSize: 12, color: '#000' }}>Date:</Text>
                                 <Text style={{ color: '#CF2A3A', fontSize: 15, fontWeight: '900' }}>{date}</Text>
                             </View>
                             <TouchableOpacity disabled={trips && trips.length == 0} onPress={() => addExpenseForm()} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 8, backgroundColor: trips?.length == 0 ? '#d8727c' : '#cf2a3a', justifyContent: 'center', borderRadius: 5 }}>
                                 <Ionicons name='add' size={20} color={'#fff'} />
-                                <Text style={{ fontWeight: 'bold', color: '#fff' }}>Add</Text>
+                                <Text style={{ fontWeight: 'bold', color: '#fff' }}>Add Expense</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -390,6 +403,7 @@ export default function AddExpenses() {
                                         labelField="label" 
                                         valueField="id" 
                                         placeholder="Select Trip Schedule" 
+                                        placeholderStyle={{ color: '#B3B3B3', fontSize: 14 }}
                                         style={{ height: 50, width: '100%', paddingHorizontal: 10 }}
                                         containerStyle={{
                                             alignSelf: 'flex-start',
@@ -408,7 +422,7 @@ export default function AddExpenses() {
                                     />
                                 </View>
                             </View>
-                            <KeyboardAvoidingView style={{ flex: 1, marginTop: 10 }} behavior={Platform.OS === 'android' ? 'padding' : 'height'}>
+                            <KeyboardAvoidingView style={{ flex: 1, marginTop: 10, paddingBottom: 300 }} behavior={Platform.OS === 'android' ? 'padding' : 'height'}>
                                 <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
                                     <View style={{ paddingHorizontal: 20, paddingBottom: 80, flex: 1 }}>
                                         {expenses.map((e) => (
@@ -421,15 +435,15 @@ export default function AddExpenses() {
                                                 <View>
                                                     <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#545454' }}>Description</Text>
                                                     <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
-                                                        <TextInput value={e.description} onChangeText={(text) => updateExpense(e.id, 'description', text)} placeholder='e.g. Vessel Oil' style={{ fontSize: 13 }} />
+                                                        <TextInput value={e.description} onChangeText={(text) => updateExpense(e.id, 'description', text)} placeholderTextColor={'#B3B3B3'} placeholder='e.g. Vessel Oil' style={{ fontSize: 13, color: '#000' }} />
                                                     </View>
                                                 </View>
                                                 <View style={{ marginTop: 5, flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
                                                     <View style={{ width: '25%' }}>
                                                         <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#545454' }}>Amount:</Text>
                                                         <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 5 }}>
-                                                            <Text style={{ fontWeight: 'bold', fontSize: 16, marginTop: -5 }}>₱</Text>
-                                                            <TextInput onChangeText={(text) => updateExpense(e.id, 'amount', Number(text))} keyboardType='numeric' placeholder='0.00' style={{ fontSize: 14, textAlign: 'right', fontWeight: '600', width: '80%' }} />
+                                                            <Text style={{ fontWeight: 'bold', fontSize: 16, marginTop: -5, color: '#000' }}>₱</Text>
+                                                            <TextInput onChangeText={(text) => updateExpense(e.id, 'amount', Number(text))} keyboardType='numeric' placeholder='0.00' placeholderTextColor={'#B3B3B3'} style={{ fontSize: 14, textAlign: 'right', fontWeight: '600', width: '80%', color: '#000' }} />
                                                         </View>
                                                     </View>
                                                     <View style={{ width: '72.5%' }}>
@@ -441,19 +455,20 @@ export default function AddExpenses() {
                                                                     alignSelf: 'flex-start',
                                                                     width: '50%',
                                                                 }}
-                                                                selectedTextStyle={{ fontWeight: '500', fontSize: 16, lineHeight: 35 }}
+                                                                placeholderStyle={{ color: '#B3B3B3', fontSize: 14 }}
+                                                                selectedTextStyle={{ fontWeight: '500', fontSize: 16, lineHeight: 35, color: '#000' }}
                                                                 renderRightIcon={() => (
                                                                     <Ionicons name="chevron-down" size={15} />
                                                                 )}
                                                                 dropdownPosition="bottom"
                                                                 renderItem={(item) => (
                                                                     <View style={{ width: '80%', padding: 10 }}>
-                                                                    <Text style={{ fontSize: 16 }}>{item.label}</Text>
+                                                                    <Text style={{ fontSize: 16, color: '#000' }}>{item.label}</Text>
                                                                     </View>
                                                                 )}
                                                             />
                                                             <TouchableOpacity onPress={() => setModal(true)} style={{ borderLeftColor: '#B3B3B3', borderLeftWidth: 1, height: '100%', padding: 8 }} >
-                                                                <Ionicons name='add' size={20}/>
+                                                                <Ionicons name='add' size={20} color={'#000'}/>
                                                             </TouchableOpacity>
                                                         </View>
                                                     </View>

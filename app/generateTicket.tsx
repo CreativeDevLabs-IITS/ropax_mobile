@@ -17,7 +17,7 @@ const logo_icon = require('@/assets/images/logo_icon.png');
 const { height, width } = Dimensions.get('window');
 
 export default function TicketGenerator() {
-    const { vessel, mobileCode, origin, destination, cashTendered, fareChange, totalFare, note, departure_date, departure_time, refNumber, clearTrip } = useTrip();
+    const { vessel, mobileCode, origin, destination, cashTendered, fareChange, totalFare, note, departure_date, departure_time, refNumber, forReprint, clearTrip } = useTrip();
     const { paxCargoProperty, setPaxCargoProperties } = useCargo();
     const { passengers, clearPassengers } = usePassengers();
     const {connectedDevice, connectedDeviceId, bleManager, setConnectedDevice, setConnectedDeviceId} = useBleManager();
@@ -399,7 +399,7 @@ export default function TicketGenerator() {
             boldOn(); println('CARGO:'); boldOff();
             cargos.forEach(c => {
                 const desc = c.cargoType === 'Rolling Cargo'
-                    ? `${c.cargoBrand} ${c.cargoSpecification}`
+                    ? ` ${c.cargoSpecification}CC`
                     : c.parcelCategory;
                 println(`${c.quantity}x ${desc} - P${Number(c.cargoAmount).toFixed(2)}`);
             });
@@ -511,15 +511,22 @@ export default function TicketGenerator() {
     const clearAll = useCallback(() => {
         if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
         setLoading(true);
-        clearTrip();
         clearPassengers();
         setPaxCargoProperties([]);
 
         scanTimeoutRef.current = setTimeout(() => {
-            if (!isMountedRef.current) return;
-            setLoading(false);
-            router.replace('/(tabs)/manual-booking');
+            if(forReprint == true) {
+                clearTrip();
+                if (!isMountedRef.current) return;
+                setLoading(false);
+                router.replace('/(tabs)/manual-booking');
+            }else {
+                if (!isMountedRef.current) return;
+                setLoading(false);
+                router.replace('/seatPlan');
+            }
         }, 400);
+
     }, [clearTrip, clearPassengers, setPaxCargoProperties])
     
 
@@ -705,14 +712,14 @@ export default function TicketGenerator() {
                                     {passengers.some(p => p.hasCargo) && (
                                         <View style={{ borderBottomColor: '#9B9B9B', borderBottomWidth: 1, paddingVertical: 10 }}>
                                             <View style={{ width: '100%', flexDirection: 'column' }}>
-                                                <Text style={{ fontSize: 14, fontWeight: '900', flexDirection: 'column' }}>Cargo</Text>
+                                                <Text style={{ fontSize: 14, fontWeight: '900', flexDirection: 'column', color: '#000' }}>Cargo</Text>
                                                 {passengers.flatMap(p => p.hasCargo ? 
                                                     p.cargo.map(c => (
                                                         <View key={`${c?.id}-${c.cargoBrand}`} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                                                             <View style={{ flexDirection: 'row', gap: 3 }}>
                                                                 <Text style={{ fontSize: 13, color: '#4b4b4bff' }}>{`${c.quantity}x`}</Text>
                                                                 <Text style={{ fontSize: 13, color: '#4b4b4bff' }}>
-                                                                    { c.cargoType == 'Rolling Cargo' ? `${c.cargoBrand} ${c.cargoSpecification}` : c.parcelCategory}
+                                                                    { c.cargoType == 'Rolling Cargo' ? `${c.cargoSpecification}` : c.parcelCategory}
                                                                 </Text>
                                                                 <Text style={{ fontSize: 13, color: '#4b4b4bff' }}>{`(${c.cargoType})`}</Text>
                                                             </View>
@@ -736,7 +743,7 @@ export default function TicketGenerator() {
                                                 <View style={{ flexDirection: 'row', gap: 3 }}>
                                                     <Text style={{ fontSize: 12, color: '#4b4b4bff' }}>{`${cargo.quantity}x`}</Text>
                                                     <Text style={{ fontSize: 12, color: '#4b4b4bff' }}>
-                                                        { cargo.cargoType == 'Rolling Cargo' ? `${cargo.cargoBrand} ${cargo.cargoSpecification}` : cargo.parcelCategory}
+                                                        { cargo.cargoType == 'Rolling Cargo' ? `${cargo.cargoSpecification}CC` : cargo.parcelCategory}
                                                     </Text>
                                                     <Text style={{ fontSize: 12, color: '#4b4b4bff' }}>{`(${cargo.cargoType})`}</Text>
                                                 </View>

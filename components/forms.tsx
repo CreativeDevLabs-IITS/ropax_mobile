@@ -131,6 +131,7 @@ const PassengerCard = memo(({
                             keyboardType={'numeric'}
                             placeholder='0.00'
                             style={styles.fareInput}
+                            placeholderTextColor={'#b3b3b3'}
                         />
                     </View>
                 </View>
@@ -460,14 +461,14 @@ const PassengerCard = memo(({
                                                 onPress={() => onCargoQuantity('minus', cargoIndex, p.id)}
                                                 style={{ paddingRight: 5 }}
                                             >
-                                                <Ionicons name={'remove'} size={25} color={c.quantity === 1 ? "#d4d4d4ff" : undefined} />
+                                                <Ionicons name={'remove'} size={25} color={c.quantity === 1 ? "#d4d4d4ff" : "#000"} />
                                             </TouchableOpacity>
                                             <Text style={styles.qtyText}>{c.quantity}</Text>
                                             <TouchableOpacity
                                                 onPress={() => onCargoQuantity('add', cargoIndex, p.id)}
                                                 style={{ paddingLeft: 5 }}
                                             >
-                                                <Ionicons name={'add'} size={25} />
+                                                <Ionicons name={'add'}  size={25} color={"#000"} />
                                             </TouchableOpacity>
                                         </View>
                                     </View>
@@ -479,19 +480,20 @@ const PassengerCard = memo(({
                                 <View style={styles.dropdownWrap}>
                                     <Dropdown
                                         onChange={(item) => onUpdateCargoValue(p.id, cargoIndex, 'cargoType', item.label)}
-                                        value={c.cargoTypeID}
+                                        value={c.cargoType}
                                         data={cargoProperties?.data?.cargo_types?.map((type: any) => ({ label: type.name, value: type.id })) ?? []}
                                         labelField="label"
-                                        valueField="value"
+                                        placeholderStyle={{ fontSize: 16, lineHeight: 45, fontWeight: '600', color: '#b3b3b3' }}
+                                        valueField="label"
                                         placeholder="Select Cargo Type"
                                         style={styles.dropdownStyle}
-                                        containerStyle={{ alignSelf: 'flex-start', width: '90%' }}
+                                        containerStyle={{ alignSelf: 'flex-start', width: '85%', height: 65 }}
                                         selectedTextStyle={styles.dropdownSelectedText}
-                                        renderRightIcon={() => <Ionicons name="chevron-down" size={18} />}
-                                        dropdownPosition="bottom"
+                                        renderRightIcon={() => <Ionicons name="chevron-down" size={18} color={'#b3b3b3'} />}
+                                        dropdownPosition={'auto'}
                                         renderItem={(item) => (
                                             <View style={{ width: '80%', padding: 8 }}>
-                                                <Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text>
+                                                <Text style={{ fontSize: 18, color: '#000', }}>{item.label}</Text>
                                             </View>
                                         )}
                                     />
@@ -530,6 +532,7 @@ const PassengerCard = memo(({
                                     <View style={styles.inputBorderShort}>
                                         <TextInput
                                             value={c.parcelCategory ?? ''}
+                                            placeholderTextColor={'#b3b3b3'}
                                             onChangeText={(text) => onUpdateCargoValue(p.id, cargoIndex, 'parcelCategory', text)}
                                             placeholder="Enter Parcel Category"
                                             style={styles.textInput}
@@ -1080,6 +1083,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        marginBottom: 10
     },
     colStart: {
         flexDirection: 'column',
@@ -1332,7 +1336,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 15,
-        paddingVertical: 8,
         width: 150,
         justifyContent: 'space-between',
     },
@@ -1364,6 +1367,7 @@ const styles = StyleSheet.create({
         borderLeftWidth: 1,
         borderRightWidth: 1,
         paddingVertical: 5,
+        color: '#000'
     },
     dropdownWrap: {
         borderColor: '#B3B3B3',

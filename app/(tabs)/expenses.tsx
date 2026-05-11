@@ -213,15 +213,15 @@ export default function Expenses() {
                             <View>
                                 <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#545454' }}>Description</Text>
                                 <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
-                                    <TextInput onChangeText={(text) => handleExpensePropUpdate({ key: 'description', value: text })} value={expenseToUpdate?.description} placeholder='e.g. Vessel Oil' style={{ fontSize: 13 }} />
+                                    <TextInput onChangeText={(text) => handleExpensePropUpdate({ key: 'description', value: text })} value={expenseToUpdate?.description} placeholder='e.g. Vessel Oil' style={{ fontSize: 13, color: '#000' }} />
                                 </View>
                             </View>
                             <View style={{ marginTop: 5, flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
                                 <View style={{ width: '25%' }}>
                                     <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#545454' }}>Amount:</Text>
                                     <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 5 }}>
-                                        <Text style={{ fontWeight: 'bold', fontSize: 16, marginTop: -5 }}>₱</Text>
-                                        <TextInput onChangeText={(text) => handleExpensePropUpdate({ key: 'amount', value: Number(text) })} value={String(expenseToUpdate?.amount)} keyboardType='numeric' placeholder='00.00' style={{ fontSize: 13, textAlign: 'right', }} />
+                                        <Text style={{ fontWeight: 'bold', fontSize: 16, marginTop: -5, color: '#000' }}>₱</Text>
+                                        <TextInput onChangeText={(text) => handleExpensePropUpdate({ key: 'amount', value: Number(text) })} value={String(Number(expenseToUpdate?.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }))} keyboardType='numeric' placeholder='00.00' style={{ fontSize: 13, textAlign: 'right', color: '#000' }} />
                                     </View>
                                 </View>
                                 <View style={{ width: '72.5%' }}>
@@ -233,14 +233,14 @@ export default function Expenses() {
                                                 alignSelf: 'flex-start',
                                                 width: '58%',
                                             }}
-                                            selectedTextStyle={{ fontWeight: '500', fontSize: 12, lineHeight: 35, }}
+                                            selectedTextStyle={{ fontWeight: '500', fontSize: 12, lineHeight: 35, color: '#000' }}
                                             renderRightIcon={() => (
                                                 <Ionicons name="chevron-down" size={15} />
                                             )}
                                             dropdownPosition="bottom"
                                             renderItem={(item) => (
                                                 <View style={{ width: '80%', padding: 8 }}>
-                                                <Text>{item.name}</Text>
+                                                <Text style={{ color: '#000' }}>{item.name}</Text>
                                                 </View>
                                             )}
                                         />
@@ -280,15 +280,18 @@ export default function Expenses() {
                 <View style={{ paddingBottom: 15 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#cf2a3b18', borderBottomColor: '#CF2A3A', borderBottomWidth: 1, paddingVertical: 10, paddingHorizontal: 15 }}>
                         <View style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                            <Text style={{ fontSize: 10 }}>Date:</Text>
+                            <Text style={{ fontSize: 10, color: '#000' }}>Date:</Text>
                             <Text style={{ color: '#CF2A3A', fontSize: 15, fontWeight: '900' }}>{date}</Text>
                         </View>
                         <View style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
-                            <Text style={{ fontSize: 10 }}>Total Expenses:</Text>
+                            <Text style={{ fontSize: 10, color: '#000' }}>Total Expenses:</Text>
                             <View style={{ flexDirection: 'row', gap: 3, alignItems: 'center' }}>
                                 <Text style={{ fontWeight: 'bold', fontSize: 14, color: '#cf2a3a', marginTop: -1 }}>₱</Text>
                                 <Text style={{ fontSize: 15, color: '#cf2a3a', fontWeight: '900' }}>
-                                    {totalAmount ?? 0.00}
+                                    {Number(totalAmount).toLocaleString('en-PH', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                    })}
                                 </Text>
                             </View>
                         </View>
@@ -299,7 +302,7 @@ export default function Expenses() {
                             <ScrollView refreshControl={ <RefreshControl refreshing={refresh} onRefresh={handleRefresh} colors={['#cf2a3a']} /> }>
                                 {fetchedExpenses.map((e) => (
                                     <TouchableOpacity onPress={() => handleExpenseToUpdate(e)} key={e.id} style={{ paddingHorizontal: 15, paddingVertical: 15, backgroundColor: '#fff', borderBottomColor: '#FFC1C5', borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <View>
+                                        <View style={{ width: '70%' }}>
                                             <Text style={{ fontWeight: '900', fontSize: 15 , color: '#cf2a3a' }}>{e.description}</Text>
                                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                                 <Text style={{ fontWeight: 'bold', fontSize: 10, color: '#9B9B9B' }}>{e.trip}</Text>
@@ -310,7 +313,10 @@ export default function Expenses() {
                                         <View style={{ flexDirection: 'row', gap: 3, alignItems: 'center' }}>
                                             <Text style={{ fontWeight: 'bold', fontSize: 19, color: '#FF636D', marginTop: -1 }}>₱</Text>
                                             <Text style={{ fontSize: 18, color: '#FF636D' }}>
-                                                {e.amount}
+                                                {Number(e.amount).toLocaleString('en-PH', {
+                                                    minimumFractionDigits: 2,
+                                                    maximumFractionDigits: 2,
+                                                })}
                                             </Text>
                                         </View>
                                     </TouchableOpacity>

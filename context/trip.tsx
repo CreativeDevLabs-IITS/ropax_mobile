@@ -30,6 +30,7 @@ export type TripContextProps = {
     couponCode?: string;
     discountType?: string;
     discountValue?: number;
+    forReprint?: boolean;
     setVessel: React.Dispatch<React.SetStateAction<string>>;
     setRouteID: React.Dispatch<React.SetStateAction<number>>;
     setOrigin: React.Dispatch<React.SetStateAction<string>>;
@@ -59,6 +60,7 @@ export type TripContextProps = {
     setCouponCode: React.Dispatch<React.SetStateAction<string>>;
     setDiscountType: React.Dispatch<React.SetStateAction<string>>;
     setDiscountValue: React.Dispatch<React.SetStateAction<number | null>>;
+    setForReprint: React.Dispatch<React.SetStateAction<boolean>>;
     clearTrip: () => void;
 }
 
@@ -99,6 +101,7 @@ export const TripProvider = ({ children }: TripProviderProps) => {
     const [couponCode, setCouponCode] = useState('');
     const [discountType, setDiscountType] = useState('');
     const [discountValue, setDiscountValue] = useState(null);
+    const [forReprint, setForReprint] = useState(false);
 
     const clearTrip = () => {
         setID(0);
@@ -130,11 +133,12 @@ export const TripProvider = ({ children }: TripProviderProps) => {
         setDiscountType('');
         setDiscountValue(null);
         setDiscountId(null);
+        setForReprint(false);
     };
 
     return (
-        <TripContext.Provider value={{ id, vessel, routeID, origin, destination, vessel_id, totalFare, originalFare, note, departure_date, departure_time, tripAccom, bookingId, discountId, isDiscounted, couponCode, discountType, discountValue,
-                                    fareChange, code, webCode, mobileCode, cashTendered, refNumber, isCargoable, approvedBy, hasScanned, forReschedule, reSchedAll, setDiscountId, setCouponCode, setDiscountType, setDiscountValue,
+        <TripContext.Provider value={{ id, vessel, routeID, origin, destination, vessel_id, totalFare, originalFare, note, departure_date, departure_time, tripAccom, bookingId, discountId, isDiscounted, couponCode, discountType, discountValue, forReprint,
+                                    fareChange, code, webCode, mobileCode, cashTendered, refNumber, isCargoable, approvedBy, hasScanned, forReschedule, reSchedAll, setDiscountId, setCouponCode, setDiscountType, setDiscountValue, setForReprint,
                                     setVessel, setID, setRouteID, setOrigin, setDestination, setVesselID, setTotalFare, setOriginalFare, setNote, setDepartureDate,setDepartureTime, setHasScanned, setBookingId, setIsDiscounted,
                                     setFareChange, setCode, setWebCode, setMobileCode, setCashTendered, setRefNumber, setIsCargoable, clearTrip, setApprovedBy, setTripAccom, setForReschedule, setReschedAll }}>
             {children}

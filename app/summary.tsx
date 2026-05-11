@@ -202,7 +202,7 @@ export default function PaymentSummary() {
                 const res = await SaveCargo(trip, paxCargoProperty, paxCargoProperty[0].isCargoAdded, paxCargoProperty[0].passenger_id)
             }
 
-            router.push('/generateTicket');
+            router.replace('/generateTicket');
         }catch(error: any) {
             Alert.alert('Error', error.message);
         }finally {
@@ -261,7 +261,7 @@ export default function PaymentSummary() {
                                     <Text style={{ color: '#646464', fontSize: 15, }}>Cash Tendered</Text>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, borderBottomColor: "#cf2a3a", borderBottomWidth: 1 }}>
                                         <Text style={{ fontSize: 20, fontWeight: '600', color: '#000' }}>₱</Text>
-                                        <TextInput onChangeText={(text) => setPassCashTendered(Number(text))} keyboardType={'numeric'} placeholder='0.00' style={{ width: 100, fontSize: 25, height: 55, fontWeight: 'bold', color: '#000', backgroundColor: '#fafafa', textAlign: 'right', paddingHorizontal: 3, borderColor: '#fafafa' }} />
+                                        <TextInput onChangeText={(text) => setPassCashTendered(Number(text))} placeholderTextColor={'#B3B3B3'} keyboardType={'numeric'} placeholder='0.00' style={{ width: 100, fontSize: 25, height: 55, fontWeight: 'bold', color: '#000', backgroundColor: '#fafafa', textAlign: 'right', paddingHorizontal: 3, borderColor: '#fafafa' }} />
                                     </View>
                                 </View>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -355,7 +355,7 @@ export default function PaymentSummary() {
 
                                                                 <Text style={{ fontSize: 17, color: '#cf2a3a', fontWeight: '700' }}>
                                                                     {cargo.cargoType === 'Rolling Cargo'
-                                                                    ? `${cargo.cargoBrand} ${cargo.cargoSpecification}`
+                                                                    ? ` ${cargo.cargoSpecification}CC`
                                                                     : cargo.parcelCategory}
                                                                 </Text>
                                                                 </View>
@@ -377,7 +377,7 @@ export default function PaymentSummary() {
                                     </>
                                 ) : (
                                     <>
-                                        <Text style={{ padding: 10, borderBottomColor: '#dadada', borderBottomWidth: 1, fontWeight: 'bold', marginTop: 5 }}>
+                                        <Text style={{ padding: 10, borderBottomColor: '#dadada', borderBottomWidth: 1, fontWeight: 'bold', marginTop: 5, color: '#000' }}>
                                             Cargo/s
                                         </Text>
                                         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -387,7 +387,7 @@ export default function PaymentSummary() {
                                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                                                             <Text style={{ fontSize: 17, fontWeight: '700', color: '#cf2a3a' }}>{`${cargo.quantity}x`}</Text>
                                                             <Text style={{ fontSize: 17, color: '#cf2a3a', fontWeight: '700' }}>
-                                                                { cargo.cargoType == 'Rolling Cargo' ? `${cargo.cargoBrand} ${cargo.cargoSpecification}` : cargo.parcelCategory}
+                                                                { cargo.cargoType == 'Rolling Cargo' ? ` ${cargo.cargoSpecification}CC` : cargo.parcelCategory}
                                                             </Text>
                                                         </View>
                                                         <Text style={{ fontSize: 12, color: '#646464', fontWeight: '600' }}>{`(${cargo.cargoType})`}</Text>

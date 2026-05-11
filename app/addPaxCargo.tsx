@@ -155,9 +155,10 @@ export default function AddPaxCargo() {
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <View style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
                                     <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#545454' }}>Amount:</Text>
-                                    <View style={{ borderColor: '#FFC107', backgroundColor: '#ffc10727', borderWidth: 2, borderRadius: 5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 8 }}>
+                                    <View style={{ borderColor: '#FFC107', backgroundColor: '#ffc10727', borderWidth: 2, borderRadius: 5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15 }}>
                                         <Text style={{ fontSize: 16, color: '#000' }}>₱ </Text>
                                         <TextInput
+                                            placeholderTextColor={'#b3b3b3'}
                                             value={c.cargoAmount != null ? String(c.cargoAmount) : ''}
                                             onChangeText={text => updateByIndex(index, { cargoAmount: Number(text) || 0 })}
                                             keyboardType="numeric"
@@ -204,6 +205,7 @@ export default function AddPaxCargo() {
                                                 parcelCategoryID: undefined,
                                             })
                                         }
+                                        placeholderStyle={{ fontSize: 14, lineHeight: 35, fontWeight: '600', color: '#b3b3b3' }}
                                         value={c.cargoTypeID}
                                         data={cargoProperties?.data.cargo_types?.map(t => ({ label: t.name, value: t.id })) ?? []}
                                         labelField="label"
@@ -230,6 +232,7 @@ export default function AddPaxCargo() {
                                             <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#545454' }}>Specification (CC):</Text>
                                             <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, height: 45, justifyContent: 'center' }}>
                                                 <TextInput
+                                                    placeholderTextColor={'#b3b3b3'}
                                                     value={c.cargoSpecification ?? ''}
                                                     onChangeText={text => updateByIndex(index, { cargoSpecification: text })}
                                                     placeholder="Enter CC"
@@ -243,6 +246,7 @@ export default function AddPaxCargo() {
                                             <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#545454' }}>Plate#:</Text>
                                             <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, height: 45, justifyContent: 'center' }}>
                                                 <TextInput
+                                                    placeholderTextColor={'#b3b3b3'}
                                                     value={c.cargoPlateNo ?? ''}
                                                     onChangeText={text => updateByIndex(index, { cargoPlateNo: text })}
                                                     placeholder="Plate#"
@@ -260,6 +264,7 @@ export default function AddPaxCargo() {
                                     <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, height: 45, justifyContent: 'center' }}>
                                         <TextInput
                                             value={c.parcelCategory ?? ''}
+                                            placeholderTextColor={'#b3b3b3'}
                                             onChangeText={text => updateByIndex(index, { parcelCategory: text })}
                                             placeholder="Enter Parcel Category"
                                             style={{ fontSize: 14, fontWeight: '600', color: '#000', paddingHorizontal: 8 }}

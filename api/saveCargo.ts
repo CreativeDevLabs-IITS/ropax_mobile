@@ -13,6 +13,7 @@ export async function SaveCargo(trip: TripContextProps, cargoProps: PaxCargoProp
 
     try {
         const token = await AsyncStorage.getItem('token');
+        const station_id = await AsyncStorage.getItem('stationID');
         
         if(!token) {
             throw new Error('No token found. Please login again.');
@@ -30,6 +31,7 @@ export async function SaveCargo(trip: TripContextProps, cargoProps: PaxCargoProp
             body: JSON.stringify({
                 isCargoAdded: isCargoAdded,
                 passenger_id: passenger_id,
+                station_id: Number(station_id),
                 cargos: cargoProps.map(c => ({
                     cargo_option_id: c?.cargoOptionID,
                     category: c?.parcelCategory,

@@ -93,7 +93,7 @@ export default function BookingInfo() {
     const { cargoProperties, paxCargoProperty, setPaxCargoProperties } = useCargo();
     const { setPassengers, clearPassengers } = usePassengers();
     const { setRefNumber, setBookingId, clearTrip, setRouteID, setTotalFare, setFareChange, setVessel, setID, setOrigin, setDestination, setVesselID, setCode, 
-        setWebCode, setDepartureTime, setMobileCode, setIsCargoable, setHasScanned, setTripAccom, setCashTendered, setDepartureDate } = useTrip();
+        setWebCode, setDepartureTime, setMobileCode, setIsCargoable, setHasScanned, setTripAccom, setCashTendered, setDepartureDate, setForReprint } = useTrip();
     const { bookingId, paxId, refNum } = useLocalSearchParams();
     const [ loading, setLoading ] = useState(true);
     const [ paxInfo, setPaxInfo ] = useState<PaxInfo[]>([]);
@@ -400,6 +400,8 @@ export default function BookingInfo() {
 
             const tendered = paxInfo[0]?.cashTendered != null ? Number(paxInfo[0].cashTendered) : 0;
 
+            setForReprint(true);
+
             setPassengers(paxData);
             setRefNumber(paxInfo[0].referenceNumber);
             setTotalFare(grandTotal);
@@ -556,10 +558,17 @@ export default function BookingInfo() {
 
                             </View>
                         ) : (
-                            <View style={{ marginBottom: 15 }}>
+                            <View style={{ marginTop: 30 }}>
+                                {!isOnlinePax && paxBookingStatus == 'confirmed' && (
+                                    <Pressable style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 8, backgroundColor: '#cf2a3a', elevation: 2 }}
+                                        onPress={() => handleAddCargo()}>
+                                        <Ionicons name={'add'} color={'#fff'} size={20} />
+                                        <Text style={{ color: '#fff', fontWeight: '600' }}>Add Cargo</Text>
+                                    </Pressable>
+                                )}
                                 <View style={[styles.card, { marginTop: 10 }]}>
                                     <View style={{ position: 'relative', paddingHorizontal: 10, paddingVertical: 8, borderBottomColor: '#dadada', borderBottomWidth: 1 }}>
-                                        <Text style={{ fontWeight: 'bold' }}>Cargo</Text>
+                                        <Text style={{ fontWeight: 'bold', color: '#000' }}>Cargo</Text>
                                     </View>
                                     {paxCargos.length > 0 ? (
                                         <>
@@ -579,7 +588,7 @@ export default function BookingInfo() {
                                                                         </View>
                                                                     )}
                                                                     {c?.specification && (
-                                                                         <Text style={{ fontSize: 10, color: '#646464', fontWeight: '600' }}>{`${c?.brand} ${c?.specification}CC`}</Text>
+                                                                         <Text style={{ fontSize: 10, color: '#646464', fontWeight: '600' }}>{` ${c?.specification}CC`}</Text>
                                                                     )}
                                                                     {
                                                                         c?.category && (
@@ -607,13 +616,7 @@ export default function BookingInfo() {
                                         </View>
                                     )}
                                 </View>
-                                {!isOnlinePax && paxBookingStatus == 'confirmed' && (
-                                    <Pressable style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 8, backgroundColor: '#fff', elevation: 2 }}
-                                        onPress={() => handleAddCargo()}>
-                                        <Ionicons name={'add'} color={'#cf2a3a'} size={20} />
-                                        <Text style={{ color: '#cf2a3a', fontWeight: '600' }}>Add Cargo</Text>
-                                    </Pressable>
-                                )}
+            
                             </View>
                         )}
                     </ScrollView>

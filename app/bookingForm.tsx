@@ -132,6 +132,14 @@ export default function BookingForm() {
                 return;
             }
 
+
+            if(passengers.some((p) => p.hasCargo == true &&
+                p.cargo.some(c => c.cargoAmount == 0 ))) {
+
+                Alert.alert('Invalid', 'Cargo Amount is required.');
+                setSaveLoading(false);
+                return;
+            }
             
             if(passengers.some((p) => p.hasCargo == true &&
                 p.cargo.some(c => c.cargoType == 'Rolling Cargo' && !c.cargoSpecification?.trim()))) {
@@ -184,7 +192,7 @@ export default function BookingForm() {
             </View>
 
             <View style={styles.body}>
-                <KeyboardAvoidingView style={{ flex: 1, paddingBottom: 100 }} behavior={Platform.OS === 'android' ? 'padding' : 'height'}>
+                <KeyboardAvoidingView style={{ flex: 1, paddingBottom: 200 }} behavior={Platform.OS === 'android' ? 'padding' : 'height'}>
                     <ScrollView keyboardShouldPersistTaps="handled" style={{ paddingHorizontal: 10, paddingBottom: 20, marginBottom: 15 }}>
                         <Forms errorForm={errorForm} />
                     </ScrollView>

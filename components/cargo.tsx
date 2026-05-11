@@ -311,7 +311,7 @@ export default function CargoComponent({ dateChange }: { dateChange: string }) {
 
                         {paxCargoProperty.length > 1 && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18, gap: 8, alignSelf: 'flex-end', paddingHorizontal: 10 }}>
-                                <Text style={{ fontWeight: 'bold', color: '#545454', fontSize: 14 }}>Total Amount:</Text>
+                                <Text style={{ fontWeight: 'bold', color: '#545454', fontSize: 16 }}>Total Amount:</Text>
                                 <View style={{ borderBottomColor: '#cf2a3a', borderBottomWidth: 2, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15 }}>
                                     <Text style={{ fontSize: 17, color: '#cf2a3a', fontWeight: 'bold' }}>₱ </Text>
                                     <Text style={{ fontWeight: 'bold', textAlign: 'right', fontSize: 17, color: '#cf2a3a' }}>
@@ -333,11 +333,12 @@ export default function CargoComponent({ dateChange }: { dateChange: string }) {
 
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <View style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                                                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#545454' }}>Amount:</Text>
-                                                <View style={{ borderColor: '#FFC107', backgroundColor: '#ffc10727', borderWidth: 2, borderRadius: 5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 8 }}>
+                                                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#000' }}>Amount:</Text>
+                                                <View style={{ borderColor: '#FFC107', backgroundColor: '#ffc10727', borderWidth: 2, borderRadius: 5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15 }}>
                                                     <Text style={{ fontSize: 16, color: '#000' }}>₱ </Text>
                                                     <TextInput
-                                                        value={c.cargoAmount != null ? String(c.cargoAmount) : ''}
+                                                        placeholderTextColor={'#B3B3b3'}
+                                                        value={c.cargoAmount != null ? String(Number(c.cargoAmount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : ''}
                                                         onChangeText={text => updatePaxCargoProperty(c.id, 'cargoAmount', Number(text) || 0)}
                                                         keyboardType="numeric"
                                                         placeholder="0.00"
@@ -351,13 +352,13 @@ export default function CargoComponent({ dateChange }: { dateChange: string }) {
                                                     <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#545454' }}>Quantity:</Text>
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: '#B3B3B3', paddingHorizontal: 5, borderWidth: 1, borderRadius: 5 }}>
                                                         <TouchableOpacity disabled={c.quantity == 1} onPress={() => handleCargoQuantity('minus', c.id)} style={{ paddingRight: 5 }}>
-                                                            <Ionicons name={'remove'} size={18} color={c.quantity == 1 ? '#d4d4d4ff' : undefined} />
+                                                            <Ionicons name={'remove'} size={18} color={c.quantity == 1 ? '#000' : undefined} />
                                                         </TouchableOpacity>
                                                         <Text style={{ color: '#000', paddingHorizontal: 14, fontWeight: 'bold', borderRightColor: '#B3B3B3', borderLeftColor: '#B3B3B3', borderLeftWidth: 1, borderRightWidth: 1, paddingVertical: 5 }}>
                                                             {c.quantity}
                                                         </Text>
                                                         <TouchableOpacity onPress={() => handleCargoQuantity('add', c.id)} style={{ paddingLeft: 5 }}>
-                                                            <Ionicons name={'add'} size={18} />
+                                                            <Ionicons name={'add'} size={18} color={'#000'} />
                                                         </TouchableOpacity>
                                                     </View>
                                                 </View>
@@ -372,6 +373,7 @@ export default function CargoComponent({ dateChange }: { dateChange: string }) {
                                                         updatePaxCargoProperty(c.id, 'cargoType', item.label);
                                                         updatePaxCargoProperty(c.id, 'cargoTypeID', item.value);
                                                     }}
+                                                    placeholderStyle={{ color: '#B3B3B3', fontSize: 14 }}
                                                     value={c.cargoTypeID}
                                                     data={cargoProperties?.data.cargo_types?.map((type: any) => ({ label: type.name, value: type.id }))}
                                                     labelField="label"
@@ -399,6 +401,7 @@ export default function CargoComponent({ dateChange }: { dateChange: string }) {
                                                             <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#545454' }}>Specification (CC):</Text>
                                                             <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, paddingVertical: 1 }}>
                                                                 <TextInput
+                                                                    placeholderTextColor={'#B3B3B3'}
                                                                     value={c.cargoSpecification ?? ''}
                                                                     onChangeText={text => updatePaxCargoProperty(c.id, 'cargoSpecification', text)}
                                                                     placeholder="Enter CC"
@@ -413,6 +416,7 @@ export default function CargoComponent({ dateChange }: { dateChange: string }) {
                                                             <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, paddingVertical: 1 }}>
                                                                 <TextInput
                                                                     value={c.cargoPlateNo ?? ''}
+                                                                    placeholderTextColor={'#B3B3B3'}
                                                                     onChangeText={text => updatePaxCargoProperty(c.id, 'cargoPlateNo', text)}
                                                                     placeholder="Plate#"
                                                                     style={{ height: 40, paddingHorizontal: 10, fontSize: 13, color: '#000' }}
@@ -425,6 +429,7 @@ export default function CargoComponent({ dateChange }: { dateChange: string }) {
                                                         <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#545454' }}>Description:</Text>
                                                         <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, paddingVertical: 1 }}>
                                                             <TextInput
+                                                                placeholderTextColor={'#B3B3B3'}
                                                                 value={c.parcelCategory ?? ''}
                                                                 onChangeText={text => updatePaxCargoProperty(c.id, 'parcelCategory', text)}
                                                                 placeholder="Enter Parcel Category"
@@ -439,13 +444,6 @@ export default function CargoComponent({ dateChange }: { dateChange: string }) {
                                         )}
                                     </View>
                                 ))}
-
-                                <View style={{ backgroundColor: '#fff', padding: 10, borderRadius: 8, marginTop: 10, elevation: 5 }}>
-                                    <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#545454' }}>Note:</Text>
-                                    <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, height: 60 }}>
-                                        <TextInput onChangeText={text => setNote(text)} placeholder="e.g. Receiver" style={{ fontSize: 13, color: '#000' }} />
-                                    </View>
-                                </View>
 
                                 <TouchableOpacity onPress={() => handleSaveCargo()} disabled={saveCargoLoading} style={{ backgroundColor: '#cf2a3a', width: '100%', alignSelf: 'center', borderRadius: 8, paddingVertical: 15, marginTop: 30 }}>
                                     {saveCargoLoading == true ? (

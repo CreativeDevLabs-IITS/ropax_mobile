@@ -206,7 +206,7 @@ export default function SeatPlan() {
             <View style={styles.container}>
                 <View style={styles.header}>
                     <TouchableOpacity
-                        onPress={() => { handleForceSeatRemoval(); router.back(); }}
+                        onPress={() => { handleForceSeatRemoval(); router.push('/manual-booking'); }}
                         style={{ zIndex: 1 }}
                     >
                         <Ionicons name={'arrow-back'} size={30} color={'#fff'} />

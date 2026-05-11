@@ -186,7 +186,7 @@ export default function GenSettings() {
                                 </View>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-end', marginTop: 20 }}>
                                     <TouchableOpacity onPress={() => {setStationModal(false), setSelectedStation(0)}}>
-                                        <Text>Cancel</Text>
+                                        <Text style={{ color: '#505050', fontWeight: 'bold' }}>Cancel</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity onPress={handleSaveStation} disabled={saveSpinner}>
                                         {saveSpinner ? (

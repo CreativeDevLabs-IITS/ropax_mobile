@@ -48,6 +48,28 @@ type TotalBookingProps = {
             total_amount: number;
         }[];
     }[];
+    cargos: {
+        cargo_option_id: number | null;
+        cargo_type: string | null;
+        category: string | null;
+        brand: string | null;
+        specification: string | null;
+        total_quantity: number;
+        total_amount: number;
+    }[];
+    cargo_count: number;
+    cargo_total: number;
+    expenses: {
+        expense_category_id: number;
+        category_name: string | null;
+        expenses: {
+            id: number;
+            description: string;
+            amount: string;
+        }[];
+        total_amount: number;
+    }[];
+    expense_total: number;
 }
 
 type PaxTypeProps = {
@@ -302,13 +324,14 @@ export default function ManualBooking() {
             return s.length >= w ? s : s + ' '.repeat(w - s.length);
         };
 
-        const println  = (str: string) => { pushStr(str); push(LF); };
-        const alignCenter = () => push(ESC, 0x61, 0x01);
-        const alignLeft   = () => push(ESC, 0x61, 0x00);
-        const boldOn      = () => push(ESC, 0x45, 0x01);
-        const boldOff     = () => push(ESC, 0x45, 0x00);
-        const fontNormal  = () => push(GS, 0x21, 0x00);
+        const println      = (str: string) => { pushStr(str); push(LF); };
+        const alignCenter  = () => push(ESC, 0x61, 0x01);
+        const alignLeft    = () => push(ESC, 0x61, 0x00);
+        const boldOn       = () => push(ESC, 0x45, 0x01);
+        const boldOff      = () => push(ESC, 0x45, 0x00);
+        const fontNormal   = () => push(GS, 0x21, 0x00);
 
+        // ── Header ──────────────────────────────────────────────
         push(ESC, 0x40);
         alignCenter();
         boldOn();
@@ -323,100 +346,144 @@ export default function ManualBooking() {
         println(padRight('Station:', 16) + padLeft(printableData.station ?? '', 16));
 
         if (tripInfo) {
-            println(padRight('Route:', 16) + padLeft(tripInfo.mobile_code ?? '', 16));
-            println(padRight('Vessel:', 16) + padLeft(tripInfo.vessel ?? '', 16));
+            println(padRight('Route:', 16)     + padLeft(tripInfo.mobile_code ?? '', 16));
+            println(padRight('Vessel:', 16)    + padLeft(tripInfo.vessel ?? '', 16));
             println(padRight('Departure:', 16) + padLeft(tripInfo.departure ?? '', 16));
         }
 
         println('--------------------------------');
 
-        const bClassGroup = printableData.accommodationGroup.filter(g =>
+        // ── Accommodation groups ─────────────────────────────────
+        const bClassGroup  = printableData.accommodationGroup.filter(g =>
             ['Business Class', 'B-Class', 'B Class', 'Deluxe', 'Deluxe Class'].includes(g.accommodation)
         );
+        const touristGroup = printableData.accommodationGroup.filter(g =>
+            g.accommodation === 'Tourist'
+        );
 
-        boldOn(); println('B-CLASS ACCOMMODATION:'); boldOff();
+        // helper: print one accommodation section
+        const printAccomSection = (label: string, groups: typeof bClassGroup) => {
+            boldOn(); println(`${label}:`); boldOff();
 
-        if (bClassGroup.length > 0) {
-            let bClassTotal = 0;
-            bClassGroup.forEach(g => {
-                g.passenger.forEach(p => {
-                    println(
-                        padRight(`${p.type}`, 14) +
-                        padRight(`x${p.passenger_count}`, 8) +
-                        padLeft(`P${Number(p.total_amount).toFixed(2)}`, 10)
-                    );
-                    bClassTotal += Number(p.total_amount);
+            if (groups.length > 0) {
+                let subtotal = 0;
+                groups.forEach(g => {
+                    g.passenger.forEach(p => {
+                        // format: @300 R x2  ₱600.00
+                        const fareLabel  = `@${Number(p.pax_fare).toFixed(0)}`;
+                        const typeCount  = `${p.type} x${p.passenger_count}`;
+                        const amountStr  = `P${Number(p.total_amount).toFixed(2)}`;
+                        println(
+                            padRight(fareLabel, 8) +
+                            padRight(typeCount, 14) +
+                            padLeft(amountStr, 10)
+                        );
+                        subtotal += Number(p.total_amount);
+                    });
                 });
-            });
+                push(LF);
+                println(padRight('  Subtotal:', 24) + padLeft(`P${subtotal.toFixed(2)}`, 8));
+            } else {
+                println('  No booking');
+            }
             push(LF);
-            println(padRight('  Subtotal:', 24) + padLeft(`P${bClassTotal.toFixed(2)}`, 8));
-        } else {
-            println('  No booking');
-        }
+            println('--------------------------------');
+        };
 
-        push(LF);
-        println('--------------------------------');
+        printAccomSection('B-CLASS ACCOMMODATION', bClassGroup);
+        printAccomSection('TOURIST ACCOMMODATION', touristGroup);
 
-        const touristGroup = printableData.accommodationGroup.filter(g => g.accommodation === 'Tourist');
-
-        boldOn(); println('TOURIST ACCOMMODATION:'); boldOff();
-
-        if (touristGroup.length > 0) {
-            let touristTotal = 0;
-            touristGroup.forEach(g => {
-                g.passenger.forEach(p => {
-                    println(
-                        padRight(`${p.type}`, 14) +
-                        padRight(`x${p.passenger_count}`, 8) +
-                        padLeft(`P${Number(p.total_amount).toFixed(2)}`, 10)
-                    );
-                    touristTotal += Number(p.total_amount);
-                });
-            });
-            push(LF);
-            println(padRight('  Subtotal:', 24) + padLeft(`P${touristTotal.toFixed(2)}`, 8));
-        } else {
-            println('  No booking');
-        }
-
-        push(LF);
-        println('--------------------------------');
-
-        const cargoGroup = (printableData as any).cargo ?? [];
-
+        // ── Cargo ────────────────────────────────────────────────
         boldOn(); println('CARGO:'); boldOff();
 
-        if (cargoGroup.length > 0) {
-            let cargoTotal = 0;
-            cargoGroup.forEach((c: any) => {
-                const desc = c.cargoType === 'Rolling Cargo'
-                    ? `${c.cargoBrand} ${c.cargoSpecification}`
-                    : c.parcelCategory;
-                println(`${c.quantity}x ${desc} - P${Number(c.cargoAmount).toFixed(2)}`);
-                cargoTotal += Number(c.cargoAmount);
+        const cargos = printableData.cargos ?? [];
+
+        if (cargos.length > 0) {
+            let cargoSubtotal = 0;
+            cargos.forEach(c => {
+                // build a readable label from whatever fields are available
+                let desc = 'Uncategorized';
+                if (c.cargo_type === 'Rolling Cargo' && (c.brand || c.specification)) {
+                    desc = `${c.brand ?? ''} ${c.specification ?? ''}`.trim();
+                } else if (c.cargo_type) {
+                    desc = c.cargo_type;
+                } else if (c.category) {
+                    desc = c.category;
+                }
+
+                const qtyStr    = `x${c.total_quantity}`;
+                const amountStr = `P${Number(c.total_amount).toFixed(2)}`;
+                println(
+                    padRight(desc, 20) +
+                    padRight(qtyStr, 6) +
+                    padLeft(amountStr, 6)
+                );
+                cargoSubtotal += Number(c.total_amount);
             });
             push(LF);
-            println(padRight('  Subtotal:', 24) + padLeft(`P${cargoTotal.toFixed(2)}`, 8));
+            println(padRight('  Subtotal:', 24) + padLeft(`P${cargoSubtotal.toFixed(2)}`, 8));
         } else {
-            println('  No booking');
+            println('  No cargo');
         }
 
         push(LF);
         println('--------------------------------');
 
-        const bTotal = bClassGroup.flatMap(g => g.passenger).reduce((s, p) => s + Number(p.total_amount), 0);
-        const tTotal = touristGroup.flatMap(g => g.passenger).reduce((s, p) => s + Number(p.total_amount), 0);
-        const cTotal = cargoGroup.reduce((s: number, c: any) => s + Number(c.cargoAmount ?? 0), 0);
+        // ── Expenses ─────────────────────────────────────────────
+        boldOn(); println('EXPENSES:'); boldOff();
+
+        const expenses = printableData.expenses ?? [];
+
+        if (expenses.length > 0) {
+            let expenseSubtotal = 0;
+            expenses.forEach(expCat => {
+                println(`  [${expCat.category_name ?? 'Uncategorized'}]`);
+                expCat.expenses.forEach(exp => {
+                    const amountStr = `P${Number(exp.amount).toFixed(2)}`;
+                    println(
+                        '  ' +
+                        padRight(exp.description, 20) +
+                        padLeft(amountStr, 10)
+                    );
+                    expenseSubtotal += Number(exp.amount);
+                });
+            });
+            push(LF);
+            println(padRight('  Subtotal:', 24) + padLeft(`P${expenseSubtotal.toFixed(2)}`, 8));
+        } else {
+            println('  No expenses');
+        }
+
+        push(LF);
+        println('--------------------------------');
+
+        // ── Summary ──────────────────────────────────────────────
+        const bTotal = bClassGroup
+            .flatMap(g => g.passenger)
+            .reduce((s, p) => s + Number(p.total_amount), 0);
+
+        const tTotal = touristGroup
+            .flatMap(g => g.passenger)
+            .reduce((s, p) => s + Number(p.total_amount), 0);
+
+        const cTotal = cargos
+            .reduce((s, c) => s + Number(c.total_amount), 0);
+
+        const eTotal = expenses
+            .reduce((s, e) => s + Number(e.total_amount), 0);
+
         const grandTotal = bTotal + tTotal + cTotal;
 
         boldOn(); println('SUMMARY:'); boldOff();
         println(padRight('B-Class Total:', 20)  + padLeft(`P${bTotal.toFixed(2)}`, 12));
-        println(padRight('Tourist Total:', 20)   + padLeft(`P${tTotal.toFixed(2)}`, 12));
-        println(padRight('Cargo Total:', 20)     + padLeft(`P${cTotal.toFixed(2)}`, 12));
+        println(padRight('Tourist Total:', 20)  + padLeft(`P${tTotal.toFixed(2)}`, 12));
+        println(padRight('Cargo Total:', 20)    + padLeft(`P${cTotal.toFixed(2)}`, 12));
+        println(padRight('Expense Total:', 20)  + padLeft(`P${eTotal.toFixed(2)}`, 12));
         println('--------------------------------');
         boldOn();
-        println(padRight('GRAND TOTAL:', 20) + padLeft(`P${grandTotal.toFixed(2)}`, 12));
+        println(padRight('GRAND TOTAL:', 20)    + padLeft(`P${grandTotal.toFixed(2)}`, 12));
         boldOff();
+        println('(excl. expenses)');
         println('--------------------------------');
 
         fontNormal();
@@ -632,6 +699,7 @@ export default function ManualBooking() {
     const handleFetchTotalBookings = async (trip_id: number | null) => {
         try {
             const totalBookingFetch = await FetchTotalBookings(trip_id);
+            console.log('Total Booking Fetch Response:', trip_id);
             if (!totalBookingFetch.error) {
                 const totalBookingFetchData: TotalBookingProps[] = totalBookingFetch.data.map((t: any) => ({
                     station: t.station,
@@ -646,8 +714,31 @@ export default function ManualBooking() {
                             pax_fare: p.pax_fare,
                             total_amount: p.total_amount
                         }))
-                    }))
+                    })),
+                    cargos: (t.cargos ?? []).map((c: any) => ({
+                        cargo_option_id: c.cargo_option_id ?? null,
+                        cargo_type: c.cargo_type ?? null,
+                        category: c.category ?? null,
+                        brand: c.brand ?? null,
+                        specification: c.specification ?? null,
+                        total_quantity: c.total_quantity,
+                        total_amount: c.total_amount,
+                    })),
+                    cargo_count: t.cargo_count ?? 0,
+                    cargo_total: t.cargo_total ?? 0,
+                    expenses: (t.expenses ?? []).map((e: any) => ({
+                        expense_category_id: e.expense_category_id,
+                        category_name: e.category_name ?? null,
+                        expenses: (e.expenses ?? []).map((ei: any) => ({
+                            id: ei.id,
+                            description: ei.description,
+                            amount: ei.amount,
+                        })),
+                        total_amount: e.total_amount,
+                    })),
+                    expense_total: t.expense_total ?? 0,
                 }));
+                
                 const totalBookingPaxTypes: PaxTypeProps[] = totalBookingFetch.paxTypes.map((p: any) => ({ paxTypeID: p.id, paxType: p.passenger_types_code }));
                 const totalBookingAccomTypes: AccommodationProps[] = totalBookingFetch.accommodationTypes.map((a: any) => ({ accomtTypeID: a.id, accomType: a.name }));
                 setTotalPayingCount(totalBookingFetch.total_paying);
@@ -845,7 +936,7 @@ export default function ManualBooking() {
                                     {connectedDevice && (
                                         <TouchableOpacity onPress={() => setShowDisconnect(!showDisconnect)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                                             <Ionicons name="print" size={18} color="#cf2a3a" />
-                                            <Text style={{ color: '#cf2a3a', fontSize: 14 }}>{connectedDevice.name}</Text>
+                                            <Text style={{ color: '#cf2a3a', fontSize: 14 }}>{connectedDevice.name}</Text>   
                                             <Ionicons name="chevron-down" color="#cf2a3a" size={16} />
                                         </TouchableOpacity>
                                     )}
@@ -861,7 +952,7 @@ export default function ManualBooking() {
                                             <TouchableOpacity
                                                 onPress={() => { setTotalSheetLoading(true); setBottomSheetTripID(trip.trip_id); handleFetchTotalBookings(trip.trip_id); }}
                                                 key={trip.trip_id}
-                                                style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: bottomSheetTripID == trip.trip_id ? '#cf2a3a' : '#fff', borderRadius: 5, flexDirection: 'row', alignItems: 'center', borderColor: '#cf2a3a', borderWidth: 1 }}>
+                                                style={{ paddingHorizontal: 10, paddingVertical: 8, backgroundColor: bottomSheetTripID == trip.trip_id ? '#cf2a3a' : '#fff', borderRadius: 5, flexDirection: 'row', alignItems: 'center', borderColor: '#cf2a3a', borderWidth: 1 }}>
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                                                     <Text style={{ fontWeight: 'bold', fontSize: 12, color: bottomSheetTripID == trip.trip_id ? '#fff' : '#000' }}>{`${trip.mobile_code} [ ${trip.code} ]`}</Text>
                                                     <Text style={{ fontWeight: 'bold', fontSize: 13, color: bottomSheetTripID == trip.trip_id ? '#fff' : '#cf2a3a' }}>{trip.departure}</Text>
@@ -908,6 +999,56 @@ export default function ManualBooking() {
                                                             </View>
                                                         ))}
                                                     </View>
+                                                    {tb.cargos && tb.cargos.length > 0 && (
+                                                        <View style={{ marginTop: 8 }}>
+                                                            <Text style={{ fontWeight: 'bold', color: '#000' }}>
+                                                                Cargo ({tb.cargo_count} items)
+                                                            </Text>
+                                                            {tb.cargos.map((cargo, ci) => (
+                                                                <View key={ci} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingRight: 10 }}>
+                                                                    <Text style={{ color: '#5c5c5cff', fontSize: 12 }}>
+                                                                        {cargo.cargo_type ?? cargo.category ?? cargo.specification ?? 'Uncategorized'} x{cargo.total_quantity}
+                                                                    </Text>
+                                                                    <Text style={{ color: '#5c5c5cff', fontSize: 12 }}>
+                                                                        ₱{Number(cargo.total_amount).toFixed(2)}
+                                                                    </Text>
+                                                                </View>
+                                                            ))}
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingRight: 10, marginTop: 2 }}>
+                                                                <Text style={{ fontWeight: 'bold', fontSize: 12, color: '#000' }}>Cargo Total</Text>
+                                                                <Text style={{ fontWeight: 'bold', fontSize: 12, color: '#000' }}>
+                                                                    ₱{Number(tb.cargo_total).toFixed(2)}
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                    )}
+
+                                                    {tb.expenses && tb.expenses.length > 0 && (
+                                                        <View style={{ marginTop: 8 }}>
+                                                            <Text style={{ fontWeight: 'bold', color: '#000' }}>Expenses</Text>
+                                                            {tb.expenses.map((expCat, ei) => (
+                                                                <View key={ei}>
+                                                                    <Text style={{ color: '#5c5c5cff', fontSize: 12, fontStyle: 'italic' }}>
+                                                                        {expCat.category_name ?? 'Uncategorized'}
+                                                                    </Text>
+                                                                    {expCat.expenses.map((exp, eii) => (
+                                                                        <View key={eii} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingRight: 10, paddingLeft: 8 }}>
+                                                                            <Text style={{ color: '#5c5c5cff', fontSize: 12 }}>{exp.description}</Text>
+                                                                            <Text style={{ color: '#5c5c5cff', fontSize: 12 }}>
+                                                                                ₱{Number(exp.amount).toFixed(2)}
+                                                                            </Text>
+                                                                        </View>
+                                                                    ))}
+                                                                </View>
+                                                            ))}
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingRight: 10, marginTop: 2 }}>
+                                                                <Text style={{ fontWeight: 'bold', fontSize: 12, color: '#000' }}>Expense Total</Text>
+                                                                <Text style={{ fontWeight: 'bold', fontSize: 12, color: '#cf2a3a' }}>
+                                                                    ₱{Number(tb.expense_total).toFixed(2)}
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                    )}
                                                 </View>
                                             ))}
                                         </View>

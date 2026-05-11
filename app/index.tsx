@@ -88,9 +88,10 @@ export default function Login() {
                                     <Image source={logo_text} style={{ height: 25, width: 105 }} />
                                 </View>
                                 <View>
-                                    <Text style={{ fontSize: 13, fontWeight: 'bold' }}>Email or Username</Text>
+                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#000' }}>Email or Username</Text>
                                     <TextInput
                                         placeholder="Email or Username"
+                                        placeholderTextColor={'#B3B3B3'}
                                         value={email}
                                         onChangeText={(text) => setEmail(text)}
                                         keyboardType="email-address"
@@ -101,10 +102,11 @@ export default function Login() {
                                     />
                                 </View>
                                 <View>
-                                    <Text style={{ fontSize: 13, fontWeight: 'bold' }}>Password</Text>
+                                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#000' }}>Password</Text>
                                     <View style={[styles.passwordInput, passwordFocused && styles.inputFocused]}>
                                         <TextInput
                                             placeholder="Password"
+                                            placeholderTextColor={'#B3B3B3'}
                                             value={password}
                                             onChangeText={(text) => setPassword(text)}
                                             autoCapitalize="none"
