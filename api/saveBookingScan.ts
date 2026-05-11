@@ -12,8 +12,8 @@ export async function SaveBookingScan(trip: TripContextProps, passengers: Passen
 
     try {
         const token = await AsyncStorage.getItem('token');
-        
-        if(!token) {
+
+        if (!token) {
             throw new Error('No token found. Please login again.');
         }
 
@@ -41,28 +41,28 @@ export async function SaveBookingScan(trip: TripContextProps, passengers: Passen
                     fare: p.fare,
 
                     cargos: Array.isArray(p.cargo) ? p.cargo?.map((c) => ({
-                        cargo_option_id: c?.cargoOptionID,
-                        category: c?.parcelCategory,
-                        brand: c?.cargoBrand,
-                        specification: c?.cargoSpecification,
+                        category: c?.parcelCategory ?? '',
+                        brand: c?.cargoBrand ?? '',
+                        specification: c?.cargoSpecification ?? '',
+                        plate_no: c?.cargoPlateNo ?? '',
                         cargo_type: c?.cargoType,
                         quantity: c.quantity,
                         amount: c.cargoAmount,
-                        trip_id: trip.id
-                     })) : []
+                        trip_id: trip.id,
+                    })) : [],
                 }))
             })
         });
-    
+
         const response = await res.json();
-        
-        if(!res.ok) {
+
+        if (!res.ok) {
             throw new Error(response.message);
         }
 
         return response;
 
-    } catch(error) {
+    } catch (error) {
         throw error;
     }
 }

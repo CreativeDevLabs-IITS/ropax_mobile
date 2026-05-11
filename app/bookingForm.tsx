@@ -132,18 +132,11 @@ export default function BookingForm() {
                 return;
             }
 
-            if(passengers.some((p) => p.hasCargo == true &&
-                p.cargo.some(c => c.cargoType == 'Rolling Cargo' && !c.cargoBrand?.trim()))) {
-
-                Alert.alert('Invalid', 'Brand is required.');
-                setSaveLoading(false);
-                return;
-            }
             
             if(passengers.some((p) => p.hasCargo == true &&
                 p.cargo.some(c => c.cargoType == 'Rolling Cargo' && !c.cargoSpecification?.trim()))) {
 
-                Alert.alert('Invalid', 'Specification is required.');
+                Alert.alert('Invalid', 'Description is required.');
                 setSaveLoading(false);
                 return;
             }

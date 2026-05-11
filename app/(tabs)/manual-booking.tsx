@@ -91,7 +91,6 @@ export default function ManualBooking() {
     const [bottomSheetTripID, setBottomSheetTripID] = useState<number | null>(null);
     const [cargoReady, setCargoReady] = useState(false);
 
-    // ── BLE state ────────────────────────────────────────────────
     const [bleDevices, setBleDevices] = useState<Device[]>([]);
     const [bleModalVisible, setBleModalVisible] = useState(false);
     const [scanning, setScanning] = useState(false);
@@ -738,13 +737,6 @@ export default function ManualBooking() {
             <View style={{ paddingTop: 30, height: 100, backgroundColor: '#cf2a3a', paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>Manual Booking</Text>
                 <View style={{ flexDirection: 'row', gap: 15, alignItems: 'center' }}>
-                    {connectedDevice && (
-                        <TouchableOpacity onPress={() => setShowDisconnect(!showDisconnect)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <Ionicons name="print" size={18} color="#fff" />
-                            <Text style={{ color: '#fff', fontSize: 12 }}>{connectedDevice.name}</Text>
-                            <Ionicons name="chevron-down" color="#fff" size={16} />
-                        </TouchableOpacity>
-                    )}
                     <TouchableOpacity onPress={() => setCalendar(true)}>
                         <Ionicons name="calendar" size={25} color={'#fff'} />
                     </TouchableOpacity>
@@ -846,17 +838,24 @@ export default function ManualBooking() {
                     ) : (
                         <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                                <View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 25 }}>
                                     {trips && trips.length > 0 && (
                                         <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Available Trips</Text>
                                     )}
+                                    {connectedDevice && (
+                                        <TouchableOpacity onPress={() => setShowDisconnect(!showDisconnect)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                            <Ionicons name="print" size={18} color="#cf2a3a" />
+                                            <Text style={{ color: '#cf2a3a', fontSize: 14 }}>{connectedDevice.name}</Text>
+                                            <Ionicons name="chevron-down" color="#cf2a3a" size={16} />
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                                 <TouchableOpacity onPress={() => closeToggle()} style={{ alignSelf: 'flex-end' }}>
-                                    <Ionicons name={'chevron-down'} size={30} color={'#cf2a3a'} />
+                                    <Ionicons name={'close'} size={30} color={'#cf2a3a'} />
                                 </TouchableOpacity>
                             </View>
                             {trips && trips.length > 0 ? (
-                                <View style={{ height: '80%' }}>
+                                <View style={{ height: '80%', marginTop: 15 }}>
                                     <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap', paddingTop: 5 }}>
                                         {trips.map((trip) => (
                                             <TouchableOpacity

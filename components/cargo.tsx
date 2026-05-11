@@ -1,5 +1,5 @@
 import { FetchCargoVessel } from '@/api/cargoVessel';
-import { PaxCargoProperties, useCargo } from '@/context/cargoProps';
+import { useCargo } from '@/context/cargoProps';
 import { useTrip } from '@/context/trip';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -8,7 +8,6 @@ import { ActivityIndicator, Alert, Animated, Dimensions, KeyboardAvoidingView, P
 import { Dropdown } from 'react-native-element-dropdown';
 
 const { height, width } = Dimensions.get('window');
-
 
 type CargoTripProps = {
     trip_id: number;
@@ -27,8 +26,8 @@ type CargoTripProps = {
     hasDeparted?: boolean;
 }
 
-export default function CargoComponent({ dateChange }: {dateChange: string} ) {
-    const { totalFare, note, routeID, setNote, setTotalFare, setRouteID, setVessel, setID, setOrigin, setDestination, setVesselID, setCode, setWebCode, setDepartureTime, setMobileCode, clearTrip } = useTrip();
+export default function CargoComponent({ dateChange }: { dateChange: string }) {
+    const { totalFare, note, setNote, setTotalFare, setRouteID, setVessel, setID, setOrigin, setDestination, setVesselID, setCode, setWebCode, setDepartureTime, setMobileCode, clearTrip } = useTrip();
     const { cargoProperties, paxCargoProperty, setPaxCargoProperties, updatePaxCargoProperty } = useCargo();
     const [trips, setTrips] = useState<CargoTripProps[] | null>(null);
     const [cargoContentLoading, setCargoContentLoading] = useState(true);
@@ -48,63 +47,73 @@ export default function CargoComponent({ dateChange }: {dateChange: string} ) {
     }, [paxCargoProperty]);
 
     useEffect(() => {
-        closeFormSheet()
+        closeFormSheet();
         setCargoContentLoading(true);
         handleFetchTrips(dateChange);
     }, [dateChange]);
 
     useEffect(() => {
-        if(trips && trips.length > 0) {
-            const interval = setInterval(handleTimeChecker, 60 * 60 * 1000)
-            return () => clearInterval(interval)
+        if (trips && trips.length > 0) {
+            const interval = setInterval(handleTimeChecker, 60 * 60 * 1000);
+            return () => clearInterval(interval);
         }
     }, [trips]);
 
     const handleTimeChecker = () => {
         const dateTime = new Date(
             new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
-        )
-        const toISODate = dateTime.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+        );
+        const toISODate = dateTime.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 
         const updatedTrips = trips?.map(trip => {
-            if(toISODate != trip.specific_days) return trip;
+            if (toISODate != trip.specific_days) return trip;
 
-            const [time, modifier] = trip.departure_time.split(" ");
+            const [time, modifier] = trip.departure_time.split(' ');
             const [hours, minutes] = time.split(':').map(Number);
 
             const tripTime = new Date(dateTime);
             tripTime.setHours(hours, minutes, 0, 0);
-    
-            if(dateTime > tripTime && trip.hasDeparted == false) {
-                return {...trip, hasDeparted: true}
+
+            if (dateTime > tripTime && trip.hasDeparted == false) {
+                return { ...trip, hasDeparted: true };
             }
 
             return trip;
-        })
+        });
 
-        setTrips(updatedTrips as CargoTripProps[])
-    }
+        setTrips(updatedTrips as CargoTripProps[]);
+    };
 
     const addCargo = () => {
-        const form_id = formId + 1;
-        setFormId(form_id);
-        setPaxCargoProperties(prev => [...prev, { id: form_id, quantity: 1 }]);
-    }
+        const next_id = formId + 1;
+        setFormId(next_id);
+        setPaxCargoProperties(prev => [...prev, { id: next_id, quantity: 1 }]);
+    };
 
-    const handleTripSelect = (vesselName: string, trip_id: number, routeId: number, origin: string, destination: string, mobileCode: string, code: string, web_code: string, departureTime: string, vesselID: number) => {
+    const handleTripSelect = (
+        vesselName: string,
+        trip_id: number,
+        routeId: number,
+        origin: string,
+        destination: string,
+        mobileCode: string,
+        code: string,
+        web_code: string,
+        departureTime: string,
+        vesselID: number
+    ) => {
         clearTrip();
-        const departure_time = new Date(`1970-01-01T${departureTime}`).toLocaleTimeString(
-                        'en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                        });
+        const departure_time = new Date(`1970-01-01T${departureTime}`).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+        });
 
         setSelectedVessel(vesselName);
-        setTimeWithRoute(`${origin}  >  ${destination} | ${departure_time}`)
+        setTimeWithRoute(`${origin}  >  ${destination} | ${departure_time}`);
         toggleFormSheet();
+
         setTimeout(() => {
-    
             setVessel(vesselName);
             setID(trip_id);
             setVesselID(vesselID);
@@ -117,7 +126,7 @@ export default function CargoComponent({ dateChange }: {dateChange: string} ) {
             setDepartureTime(departureTime);
             setFormLoading(false);
         }, 500);
-    }
+    };
 
     const handleFetchTrips = async (queryDate: string) => {
         try {
@@ -127,20 +136,18 @@ export default function CargoComponent({ dateChange }: {dateChange: string} ) {
             function verifyTime(timeString: string, specificDay: string) {
                 tripStatus = '';
                 const currentTime = new Date();
-                const toISODate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+                const toISODate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 
-                if(toISODate != specificDay) return tripStatus = 'scheduled';
-                
+                if (toISODate != specificDay) return (tripStatus = 'scheduled');
+
                 const [hours, minutes] = timeString.split(':').map(Number);
                 const tripTime = new Date(currentTime);
                 tripTime.setHours(hours, minutes, 0, 0);
 
-                return tripStatus = currentTime > tripTime ? 'departed' : 'scheduled';
+                return (tripStatus = currentTime > tripTime ? 'departed' : 'scheduled');
             }
 
-            
-
-            if(tripsFetch) {
+            if (tripsFetch) {
                 const tripsData: CargoTripProps[] = tripsFetch.data.map((t: any) => ({
                     trip_id: t?.id,
                     vessel: t.trip?.vessel?.name,
@@ -153,87 +160,59 @@ export default function CargoComponent({ dateChange }: {dateChange: string} ) {
                     mobile_code: t.trip?.route?.mobile_code,
                     web_code: t.trip?.route?.web_code,
                     code: t.trip?.vessel.code,
-                    departure: new Date(`1970-01-01T${t.trip?.departure_time}`).toLocaleTimeString(
-                        'en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                        }
-                    ),
+                    departure: new Date(`1970-01-01T${t.trip?.departure_time}`).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true,
+                    }),
                     isCargoable: t.trip?.vessel.is_cargoable,
-                    hasDeparted: (verifyTime(t.trip?.departure_time, t.specific_days), tripStatus == 'departed' ? true : false)
-                }))
+                    hasDeparted: (verifyTime(t.trip?.departure_time, t.specific_days), tripStatus == 'departed' ? true : false),
+                }));
 
                 setTrips(tripsData);
             }
-
-        }catch(error: any) {
+        } catch (error: any) {
             Alert.alert('Error', error.message);
-        }finally{
+        } finally {
             setCargoContentLoading(false);
         }
-    }
+    };
 
     const toggleFormSheet = () => {
-        Animated.timing(tripsAnimation, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true
-        }).start();
-
-        Animated.timing(formSheetAnim, {
-            toValue: 1,
-            duration: 200,
-            useNativeDriver: true
-        }).start()
-    }
+        Animated.timing(tripsAnimation, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+        Animated.timing(formSheetAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    };
 
     const closeFormSheet = () => {
         setPaxCargoProperties([]);
-        setTotalFare(0)
+        setTotalFare(0);
         setNote('');
         setFormId(0);
         setFormLoading(true);
-        Animated.timing(tripsAnimation, {
-            toValue: width,
-            duration: 200,
-            useNativeDriver: true
-        }).start();
-
-        Animated.timing(formSheetAnim, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true
-        }).start()
-    }
+        Animated.timing(tripsAnimation, { toValue: width, duration: 200, useNativeDriver: true }).start();
+        Animated.timing(formSheetAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+    };
 
     const handleSaveCargo = () => {
         setSaveCargoLoading(true);
-        
+
         setTimeout(() => {
-            if(paxCargoProperty.some(c =>c.cargoType == 'Rolling Cargo') && !paxCargoProperty.some(c => c.cargoBrand?.trim())) {
-                Alert.alert('Invalid', 'Brand is required.');
-                setSaveCargoLoading(false);
-                return;
-            }
-            if(paxCargoProperty.some(c =>c.cargoType == 'Rolling Cargo') && !paxCargoProperty.some(c => c.cargoSpecification?.trim())) {
+            if (paxCargoProperty.some(c => c.cargoType == 'Rolling Cargo') && !paxCargoProperty.some(c => c.cargoSpecification?.trim())) {
                 Alert.alert('Invalid', 'CC is required.');
                 setSaveCargoLoading(false);
                 return;
             }
-            if(paxCargoProperty.some(c =>c.cargoType == 'Rolling Cargo') && !paxCargoProperty.some(c => c.cargoPlateNo?.trim())) {
+            if (paxCargoProperty.some(c => c.cargoType == 'Rolling Cargo') && !paxCargoProperty.some(c => c.cargoPlateNo?.trim())) {
                 Alert.alert('Invalid', 'Plate number is required.');
                 setSaveCargoLoading(false);
                 return;
             }
-
-            if(paxCargoProperty.some(c =>c.cargoType == 'Parcel') && !paxCargoProperty.some(c => c.parcelCategory?.trim())) {
+            if (paxCargoProperty.some(c => c.cargoType == 'Parcel') && !paxCargoProperty.some(c => c.parcelCategory?.trim())) {
                 Alert.alert('Invalid', 'Parcel category is required.');
                 setSaveCargoLoading(false);
                 return;
             }
-
-            if(totalFare == null) {
+            if (totalFare == null) {
                 Alert.alert('Invalid', 'Cargo amount is missing.');
                 setSaveCargoLoading(false);
                 return;
@@ -242,117 +221,40 @@ export default function CargoComponent({ dateChange }: {dateChange: string} ) {
             setSaveCargoLoading(false);
             router.push('/summary');
         }, 500);
-
-    }
-
-    const handleCargoQuantity = (operation: 'add' | 'minus', id: number) => {
-        setPaxCargoProperties(prev => prev.map((c) => {
-            if (c.id != id) return c;
-
-            return {
-                ...c, quantity: operation == 'add' ?  c.quantity += 1 : c.quantity -= 1
-            }
-        }))
-    }
-
-    const removeCargoForm = (formId: number) => {
-        setPaxCargoProperties(prev => prev.filter(c => c.id !== formId));
-    }
-
-    const ComputedCargoAmount = (cargo: PaxCargoProperties) => {
-        let prop;
-        if(!cargo || !cargoProperties) return { amount: Number(0.00), optionID: 0 };
-
-        if(cargo?.cargoType == 'Rolling Cargo') {
-            if(!cargo.cargoBrandID  || !cargo.cargoSpecificationID) return { amount: Number(0.00), optionID: 0 };;
-            
-            prop = cargoProperties.data.cargo_options?.find(
-                c => 
-                    c.cargo_type_id == cargo.cargoTypeID &&
-                    c.cargo_brand_id == cargo.cargoBrandID &&
-                    c.specification == cargo.cargoSpecification &&
-                    c.route_id == routeID
-            );
-
-            return {
-                amount: prop?.price ? Number(prop?.price * cargo.quantity) : Number(0.00),
-                optionID: prop?.id ?? 0
-            }
-        }
-
-        if(cargo?.cargoType == 'Parcel') {
-            if(!cargo.parcelCategoryID) return { amount: Number(0.00), optionID: 0 };
-
-            prop = cargoProperties.data.cargo_options?.find(
-                c => 
-                    c.parcel_category_id == cargo.parcelCategoryID &&
-                    c.route_id == routeID
-            );
-
-            return {
-                amount: prop?.price ? Number(prop?.price * cargo.quantity) : Number(0.00),
-                optionID: prop?.id ?? 0
-            }
-        }
-
-        if(cargo?.cargoType == 'Animal/Pet') {
-            prop = cargoProperties.data.cargo_options?.find(
-                c => c.cargo_type_id == cargoProperties.data.cargo_types?.find(t => t.name == 'Animal/Pet').id &&
-                c.route_id == routeID
-            );
-
-            return {
-                amount: prop?.price ? Number(prop?.price * cargo.quantity) : Number(0.00),
-                optionID: prop?.id ?? 0
-            }
-        }
-
-        return { amount: 0.00, optionID: 0 };
     };
 
-    const computedCargoList = useMemo(() => {
-        return paxCargoProperty.map((c) => {
-            const prop = ComputedCargoAmount(c);
+    const handleCargoQuantity = (operation: 'add' | 'minus', id: number) => {
+        setPaxCargoProperties(prev =>
+            prev.map(c => {
+                if (c.id != id) return c;
+                return { ...c, quantity: operation == 'add' ? c.quantity + 1 : c.quantity - 1 };
+            })
+        );
+    };
 
-            return {
-                ...c,
-                cargoAmount: prop.amount,
-                cargoOptionID: prop.optionID
-            };
-        });
-    }, [paxCargoProperty, cargoProperties, routeID]);
+    const removeCargoForm = (id: number) => {
+        setPaxCargoProperties(prev => prev.filter(c => c.id !== id));
+    };
 
     const getTotalAmount = useMemo(() => {
-
-        return computedCargoList.reduce((sum, c) => 
-            sum + Number(c.cargoAmount), 
-        0);
-    }, [computedCargoList]);
+        return paxCargoProperty.reduce((sum, c) => sum + Number(c.cargoAmount ?? 0), 0);
+    }, [paxCargoProperty]);
 
     useEffect(() => {
-        computedCargoList.forEach((c) => {
-            const original = paxCargoProperty.find(cargo => cargo.id === c.id);
-            if (!original) return;
-            if (original.cargoAmount !== c.cargoAmount || original.cargoOptionID !== c.cargoOptionID) {
-                updatePaxCargoProperty(c.id, 'cargoOptionID', c.cargoOptionID);
-                updatePaxCargoProperty(c.id, 'cargoAmount', c.cargoAmount);
-            }
-        });
-
         setTotalFare(getTotalAmount);
-    }, [computedCargoList, paxCargoProperty, getTotalAmount]);
-
+    }, [getTotalAmount]);
 
     return (
         <View style={{ height: height - 225 }}>
             <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 15, paddingTop: 20 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    { trips && (trips.length > 0 && trips.some(t => t.hasDeparted == false)) &&  (
-                        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Select Trip</Text>
+                    {trips && trips.length > 0 && trips.some(t => t.hasDeparted == false) && (
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Select Trip</Text>
                     )}
                 </View>
             </View>
-            <Animated.View style={{ opacity: tripsAnimation, flex: 1 }}> 
+
+            <Animated.View style={{ opacity: tripsAnimation, flex: 1 }}>
                 {cargoContentLoading == true ? (
                     <View style={{ height: height / 2, justifyContent: 'center' }}>
                         <ActivityIndicator size={'large'} color={'#cf2a3a'} />
@@ -363,15 +265,18 @@ export default function CargoComponent({ dateChange }: {dateChange: string} ) {
                     </View>
                 ) : (
                     <View style={{ paddingHorizontal: 20 }}>
-                        {trips?.filter(t => t.hasDeparted == false).map((trip) => (
-                            <TouchableOpacity onPress={() => handleTripSelect(trip.vessel, trip.trip_id, trip.route_id, trip.route_origin, trip.route_destination, trip.mobile_code, trip.code, trip.web_code, trip.departure_time, trip.vessel_id)}
-                                key={trip.trip_id} style={{ elevation: 5, backgroundColor: '#fff', borderRadius: 10, marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
+                        {trips?.filter(t => t.hasDeparted == false).map(trip => (
+                            <TouchableOpacity
+                                onPress={() => handleTripSelect(trip.vessel, trip.trip_id, trip.route_id, trip.route_origin, trip.route_destination, trip.mobile_code, trip.code, trip.web_code, trip.departure_time, trip.vessel_id)}
+                                key={trip.trip_id}
+                                style={{ elevation: 5, backgroundColor: '#fff', borderRadius: 10, marginTop: 12, flexDirection: 'row', alignItems: 'center' }}
+                            >
                                 <View style={{ height: '100%', borderTopLeftRadius: 10, borderBottomLeftRadius: 10, width: 5, backgroundColor: '#cf2a3a' }} />
                                 <View style={{ width: '78%', paddingHorizontal: 15, paddingVertical: 20 }}>
                                     <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#cf2a3a' }}>{`${trip.departure}`}</Text>
-                                    <Text style={{ fontWeight: 'bold', fontSize: 13 }}>{`${trip.route_origin}  >  ${trip.route_destination} [ ${trip.vessel} ]`}</Text>
+                                    <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#000' }}>{`${trip.route_origin}  >  ${trip.route_destination} [ ${trip.vessel} ]`}</Text>
                                 </View>
-                                <Ionicons name="chevron-forward" size={18} style={{ marginLeft: 30 }} />
+                                <Ionicons name="chevron-forward" size={18} style={{ marginLeft: 30, color: '#000' }} />
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -393,17 +298,15 @@ export default function CargoComponent({ dateChange }: {dateChange: string} ) {
                                     <Text style={{ color: '#cf2a3a', fontSize: 15, fontWeight: '900', marginTop: -5, width: '90%' }}>{selectedVessel}</Text>
                                 </View>
                             </View>
-                            
+
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <TouchableOpacity onPress={() => closeFormSheet()} style={{ paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#cf2a3a', borderRadius: 5 }}>
                                     <Ionicons name={'arrow-back'} color={'#fff'} size={18} />
                                 </TouchableOpacity>
-
                                 <TouchableOpacity onPress={() => addCargo()} style={{ paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#cf2a3a', borderRadius: 5 }}>
                                     <Ionicons name={'add'} color={'#fff'} size={18} />
                                 </TouchableOpacity>
                             </View>
-
                         </View>
 
                         {paxCargoProperty.length > 1 && (
@@ -412,12 +315,12 @@ export default function CargoComponent({ dateChange }: {dateChange: string} ) {
                                 <View style={{ borderBottomColor: '#cf2a3a', borderBottomWidth: 2, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15 }}>
                                     <Text style={{ fontSize: 17, color: '#cf2a3a', fontWeight: 'bold' }}>₱ </Text>
                                     <Text style={{ fontWeight: 'bold', textAlign: 'right', fontSize: 17, color: '#cf2a3a' }}>
-                                        {getTotalAmount.toFixed ? getTotalAmount?.toLocaleString('en-PH', { minimumFractionDigits: 2,  maximumFractionDigits: 2 }) : '0.00'}
+                                        {getTotalAmount.toFixed ? getTotalAmount?.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                                     </Text>
                                 </View>
                             </View>
                         )}
-    
+
                         <KeyboardAvoidingView style={{ paddingBottom: 100 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 100 }} nestedScrollEnabled={true}>
                                 {paxCargoProperty?.map((c: any) => (
@@ -427,151 +330,126 @@ export default function CargoComponent({ dateChange }: {dateChange: string} ) {
                                                 <Ionicons color={'#cf2a3a'} name={'close'} size={20} />
                                             </TouchableOpacity>
                                         )}
+
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <View style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
                                                 <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#545454' }}>Amount:</Text>
                                                 <View style={{ borderColor: '#FFC107', backgroundColor: '#ffc10727', borderWidth: 2, borderRadius: 5, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 8 }}>
-                                                    <Text style={{ fontSize: 16 }}>₱ </Text>
-                                                    <Text style={{ fontWeight: 'bold', textAlign: 'right', fontSize: 16 }}>
-                                                        {ComputedCargoAmount(c)?.amount?.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                    </Text>
+                                                    <Text style={{ fontSize: 16, color: '#000' }}>₱ </Text>
+                                                    <TextInput
+                                                        value={c.cargoAmount != null ? String(c.cargoAmount) : ''}
+                                                        onChangeText={text => updatePaxCargoProperty(c.id, 'cargoAmount', Number(text) || 0)}
+                                                        keyboardType="numeric"
+                                                        placeholder="0.00"
+                                                        style={{ fontWeight: 'bold', textAlign: 'right', fontSize: 16, color: '#000', minWidth: 80 }}
+                                                    />
                                                 </View>
                                             </View>
+
                                             {c.cargoType && c.cargoType != 'Rolling Cargo' && (
                                                 <View style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
                                                     <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#545454' }}>Quantity:</Text>
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: '#B3B3B3', paddingHorizontal: 5, borderWidth: 1, borderRadius: 5 }}>
                                                         <TouchableOpacity disabled={c.quantity == 1} onPress={() => handleCargoQuantity('minus', c.id)} style={{ paddingRight: 5 }}>
-                                                            <Ionicons name={'remove'} size={18} color={c.quantity == 1 && "#d4d4d4ff"} />
+                                                            <Ionicons name={'remove'} size={18} color={c.quantity == 1 ? '#d4d4d4ff' : undefined} />
                                                         </TouchableOpacity>
-                                                        <Text style={{ paddingHorizontal: 14, fontWeight: 'bold', borderRightColor: '#B3B3B3', borderLeftColor: '#B3B3B3', borderLeftWidth: 1, borderRightWidth: 1, paddingVertical: 5 }}>
+                                                        <Text style={{ color: '#000', paddingHorizontal: 14, fontWeight: 'bold', borderRightColor: '#B3B3B3', borderLeftColor: '#B3B3B3', borderLeftWidth: 1, borderRightWidth: 1, paddingVertical: 5 }}>
                                                             {c.quantity}
                                                         </Text>
                                                         <TouchableOpacity onPress={() => handleCargoQuantity('add', c.id)} style={{ paddingLeft: 5 }}>
-                                                            <Ionicons name={'add'} size={18}/>
+                                                            <Ionicons name={'add'} size={18} />
                                                         </TouchableOpacity>
                                                     </View>
                                                 </View>
                                             )}
                                         </View>
+
                                         <View style={{ marginTop: 10 }}>
-                                            <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#545454' }}>Cargo Type:</Text>
+                                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#545454' }}>Cargo Type:</Text>
                                             <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
-                                                <Dropdown onChange={(item) => {updatePaxCargoProperty(c.id, 'cargoType', item.label), updatePaxCargoProperty(c.id, 'cargoTypeID', item.value)}} 
-                                                    value={c.cargoTypeID} data={cargoProperties?.data.cargo_types?.map((type: any) => ({ label: type.name, value: type.id }))} labelField="label" valueField="value" placeholder="Select Cargo Type" style={{ height: 40, width: '100%', paddingHorizontal: 10 }}
-                                                    containerStyle={{
-                                                        alignSelf: 'flex-start',
-                                                        width: '85%',
+                                                <Dropdown
+                                                    onChange={item => {
+                                                        updatePaxCargoProperty(c.id, 'cargoType', item.label);
+                                                        updatePaxCargoProperty(c.id, 'cargoTypeID', item.value);
                                                     }}
-                                                    selectedTextStyle={{ fontSize: 14, lineHeight: 35, }}
-                                                    renderRightIcon={() => (
-                                                        <Ionicons name="chevron-down" size={15} />
-                                                    )}
+                                                    value={c.cargoTypeID}
+                                                    data={cargoProperties?.data.cargo_types?.map((type: any) => ({ label: type.name, value: type.id }))}
+                                                    labelField="label"
+                                                    valueField="value"
+                                                    placeholder="Select Cargo Type"
+                                                    style={{ height: 40, width: '100%', paddingHorizontal: 10 }}
+                                                    containerStyle={{ alignSelf: 'flex-start', width: '85%' }}
+                                                    selectedTextStyle={{ fontSize: 14, lineHeight: 35, color: '#000' }}
+                                                    renderRightIcon={() => <Ionicons name="chevron-down" size={15} />}
                                                     dropdownPosition="bottom"
-                                                    renderItem={(item) => (
+                                                    renderItem={item => (
                                                         <View style={{ width: '80%', padding: 8 }}>
-                                                            <Text>{item.label}</Text>
+                                                            <Text style={{ color: '#000' }}>{item.label}</Text>
                                                         </View>
                                                     )}
                                                 />
                                             </View>
                                         </View>
+
                                         {c?.cargoType != null && (
                                             <>
-                                                { c?.cargoType == 'Rolling Cargo' ? (
-                                                    <>
-                                                        <View style={{ marginTop: 10 }}>
-                                                            <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#545454' }}>Brand:</Text>
-                                                            <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
-                                                                <Dropdown onChange={(item) => {updatePaxCargoProperty(c.id, 'cargoBrand', item.label), updatePaxCargoProperty(c.id, 'cargoBrandID', item.value)}} 
-                                                                    value={c.cargoBrandID} data={cargoProperties?.data.brands.map((b: any) => ({ label: b.name, value: b.id }))} labelField="label" valueField="value" placeholder="Select Brand" style={{ height: 40, width: '100%', paddingHorizontal: 10 }}
-                                                                    containerStyle={{
-                                                                        alignSelf: 'flex-start',
-                                                                        width: '85%',
-                                                                    }}
-                                                                    selectedTextStyle={{ fontSize: 14, lineHeight: 35, }}
-                                                                    renderRightIcon={() => (
-                                                                        <Ionicons name="chevron-down" size={15} />
-                                                                    )}
-                                                                    dropdownPosition="bottom"
-                                                                    renderItem={(item) => (
-                                                                        <View style={{ width: '80%', padding: 8 }}>
-                                                                            <Text>{item.label}</Text>
-                                                                        </View>
-                                                                    )}
+                                                {c?.cargoType == 'Rolling Cargo' ? (
+                                                    <View style={{ marginTop: 5, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                        <View style={{ width: '48%' }}>
+                                                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#545454' }}>Specification (CC):</Text>
+                                                            <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, paddingVertical: 1 }}>
+                                                                <TextInput
+                                                                    value={c.cargoSpecification ?? ''}
+                                                                    onChangeText={text => updatePaxCargoProperty(c.id, 'cargoSpecification', text)}
+                                                                    placeholder="Enter CC"
+                                                                    keyboardType="numeric"
+                                                                    style={{ height: 40, paddingHorizontal: 10, fontSize: 13, color: '#000' }}
                                                                 />
                                                             </View>
                                                         </View>
-                                                        <View style={{ marginTop: 5, flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                            <View style={{ width: '48%' }}>
-                                                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#545454' }}>Specification:</Text>
-                                                                <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
-                                                                    <Dropdown onChange={(item) => {updatePaxCargoProperty(c.id, 'cargoSpecification', String(item.label)), updatePaxCargoProperty(c.id, 'cargoSpecificationID', item.value)}} 
-                                                                        value={c.cargoSpecificationID} data={cargoProperties.data.cargo_options?.filter(opt => opt.specification).map((s: any) => ({ label: String(s.specification), value: s.id }))} labelField="label" valueField="value" placeholder="Select CC" style={{ height: 40, width: '100%', paddingHorizontal: 10 }}
-                                                                        containerStyle={{
-                                                                            alignSelf: 'flex-start',
-                                                                            width: '40%',
-                                                                        }}
-                                                                        selectedTextStyle={{ fontSize: 14, lineHeight: 35, }}
-                                                                        renderRightIcon={() => (
-                                                                            <Ionicons name="chevron-down" size={15} />
-                                                                        )}
-                                                                        dropdownPosition="bottom"
-                                                                        renderItem={(item) => (
-                                                                            <View style={{ width: '80%', padding: 8 }}>
-                                                                                <Text>{item.label}</Text>
-                                                                            </View>
-                                                                        )}
-                                                                    />
-                                                                </View>
-                                                            </View>
-                                                            <View style={{ width: '48%' }}>
-                                                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#545454' }}>Plate#:</Text>
-                                                                <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, paddingVertical: 1 }}>
-                                                                    <TextInput onChangeText={(text) => updatePaxCargoProperty(c.id, 'cargoPlateNo', text)} placeholder='Plate#' style={{ fontSize: 13 }} />
-                                                                </View>
+
+                                                        <View style={{ width: '48%' }}>
+                                                            <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#545454' }}>Plate#:</Text>
+                                                            <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, paddingVertical: 1 }}>
+                                                                <TextInput
+                                                                    value={c.cargoPlateNo ?? ''}
+                                                                    onChangeText={text => updatePaxCargoProperty(c.id, 'cargoPlateNo', text)}
+                                                                    placeholder="Plate#"
+                                                                    style={{ height: 40, paddingHorizontal: 10, fontSize: 13, color: '#000' }}
+                                                                />
                                                             </View>
                                                         </View>
-                                                    </>
+                                                    </View>
                                                 ) : c?.cargoType == 'Parcel' ? (
                                                     <View style={{ marginTop: 5 }}>
-                                                        <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#545454' }}>Parcel Category:</Text>
-                                                        <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5 }}>
-                                                            <Dropdown onChange={(item) => {updatePaxCargoProperty(c.id, 'parcelCategory', item.label), updatePaxCargoProperty(c.id, 'parcelCategoryID', item.value)}} 
-                                                            value={c.parcelCategoryID} data={cargoProperties?.data.parcel_categories.map((category: any) => ({ label: category.name.slice(1, -1), value: category.id })) } labelField="label" valueField="value" placeholder="Select Category" style={{ height: 40, width: '100%', paddingHorizontal: 10 }}
-                                                                containerStyle={{
-                                                                    alignSelf: 'flex-start',
-                                                                    width: '85%',
-                                                                }}
-                                                                selectedTextStyle={{ fontSize: 14, lineHeight: 35, }}
-                                                                renderRightIcon={() => (
-                                                                    <Ionicons name="chevron-down" size={15} />
-                                                                )}
-                                                                dropdownPosition="bottom"
-                                                                renderItem={(item) => (
-                                                                    <View style={{ width: '80%', padding: 8 }}>
-                                                                        <Text>{item.label}</Text>
-                                                                    </View>
-                                                                )}
+                                                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#545454' }}>Description:</Text>
+                                                        <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, paddingVertical: 1 }}>
+                                                            <TextInput
+                                                                value={c.parcelCategory ?? ''}
+                                                                onChangeText={text => updatePaxCargoProperty(c.id, 'parcelCategory', text)}
+                                                                placeholder="Enter Parcel Category"
+                                                                style={{ height: 40, paddingHorizontal: 10, fontSize: 14, color: '#000' }}
                                                             />
                                                         </View>
                                                     </View>
                                                 ) : (
-                                                    <View/>
+                                                    <View />
                                                 )}
                                             </>
                                         )}
                                     </View>
                                 ))}
+
                                 <View style={{ backgroundColor: '#fff', padding: 10, borderRadius: 8, marginTop: 10, elevation: 5 }}>
                                     <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#545454' }}>Note:</Text>
                                     <View style={{ borderColor: '#B3B3B3', borderWidth: 1, borderRadius: 5, height: 60 }}>
-                                        <TextInput onChangeText={(text) => setNote(text)} placeholder='e.g. Receiver' style={{ fontSize: 13 }} />
+                                        <TextInput onChangeText={text => setNote(text)} placeholder="e.g. Receiver" style={{ fontSize: 13, color: '#000' }} />
                                     </View>
                                 </View>
+
                                 <TouchableOpacity onPress={() => handleSaveCargo()} disabled={saveCargoLoading} style={{ backgroundColor: '#cf2a3a', width: '100%', alignSelf: 'center', borderRadius: 8, paddingVertical: 15, marginTop: 30 }}>
                                     {saveCargoLoading == true ? (
-                                        <ActivityIndicator size='small' color={'#fff'} />
+                                        <ActivityIndicator size="small" color={'#fff'} />
                                     ) : (
                                         <Text style={{ fontSize: 16, fontWeight: 'bold', textAlign: 'center', color: '#fff' }}>Proceed</Text>
                                     )}
@@ -582,5 +460,5 @@ export default function CargoComponent({ dateChange }: {dateChange: string} ) {
                 )}
             </Animated.View>
         </View>
-    )
+    );
 }

@@ -12,7 +12,6 @@ import { Checkbox } from 'react-native-paper';
 import { InfantProps, usePassengers } from '../context/passenger';
 import PreLoader from './preloader';
 
-
 const passGender = ['Male', 'Female'];
 
 type FormProps = {
@@ -60,7 +59,6 @@ type PassengerCardProps = {
     passengerType: PassTypeProps[] | null;
     paxFares: PaxFareProps[] | null;
     cargoProperties: any;
-    cargoComputeMap: Record<string, { cargoAmount: number; cargoOptionID: number }[]>;
     isCargoable: number;
     routeID: number;
     vessel_id: number;
@@ -84,7 +82,6 @@ type PassengerCardProps = {
     onInfantClearAutoComplete: (paxId: string | number, infantIndex: number) => void;
     onUpdatePassenger: (id: string | number, key: string, value: any) => void;
     onUpdateInfant: (id: string | number, index: number, key: string, value: any) => void;
-    onUpdateCargo: (paxId: string | number, cargoIndex: number, keyName: string, keyValue: string, keyId: string, keyValueId: number) => void;
     onUpdateCargoValue: (paxId: string | number, cargoIndex: number, key: string, value: any) => void;
     onHasInfantChecker: (paxId: string | number, typeId: number) => void;
     onHasCargoChecker: (paxId: string | number) => void;
@@ -97,12 +94,12 @@ type PassengerCardProps = {
 
 const PassengerCard = memo(({
     p, index, hasPasses, errorForm, paxsengerTypes, passengerType,
-    cargoProperties, cargoComputeMap, isCargoable,
+    cargoProperties, isCargoable,
     suggestions, infantSuggestions, formattedPaxList, formattedInfantList,
     dropdownController, initializedRefs, InfantDropController, initializedInfantRefs, isSpecialInf,
     onPassesRemove, onPaxTypeSelect, onFareChange, onSearch, onInfantSearch,
     onAutoComplete, onInfantAutoComplete, onClearAutoComplete, onInfantClearAutoComplete,
-    onUpdatePassenger, onUpdateInfant, onUpdateCargo, onUpdateCargoValue,
+    onUpdatePassenger, onUpdateInfant, onUpdateCargoValue,
     onHasInfantChecker, onHasCargoChecker, onAddInfant, onAddPaxCargo,
     onRemoveInfant, onRemoveCargo, onCargoQuantity,
 }: PassengerCardProps) => {
@@ -291,8 +288,6 @@ const PassengerCard = memo(({
                 </View>
             </View>
 
-            
-
             {p.hasInfant && (
                 <View style={styles.infantSection}>
                     <View style={styles.sectionHeaderRow}>
@@ -422,7 +417,7 @@ const PassengerCard = memo(({
                     <View style={styles.cargoHeaderRow}>
                         <Text style={styles.sectionTitle}>Cargo Details</Text>
                         <TouchableOpacity
-                            onPress={() => onAddPaxCargo(p.seatNumber!, { cargoAmount: 0.00, quantity: 1 })}
+                            onPress={() => onAddPaxCargo(p.seatNumber!, { cargoAmount: 0, quantity: 1 })}
                             style={styles.addButton}
                         >
                             <Ionicons name={'add'} size={20} color={'#fff'} />
@@ -430,166 +425,122 @@ const PassengerCard = memo(({
                         </TouchableOpacity>
                     </View>
 
-                    {(p.cargo ?? []).map((c: any, cargoIndex: number) => {
-                        return (
-                            <View key={`${p.id}-${cargoIndex}`}>
-                                {cargoIndex !== 0 && (
-                                    <TouchableOpacity
-                                        onPress={() => onRemoveCargo(p.seatNumber, index, cargoIndex)}
-                                        style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10, alignSelf: 'flex-end' }}
-                                    >
-                                        <Ionicons name={'close'} size={20} color={'#cf2a3a'} />
-                                    </TouchableOpacity>
-                                )}
-                                <View style={styles.rowBetween}>
-                                    <View style={styles.colStart}>
-                                        <Text style={styles.cargoAmountLabel}>Amount:</Text>
-                                        <View style={styles.cargoAmountBox}>
-                                            <Text style={{ fontSize: 20, color: '#000' }}>₱ </Text>
-                                            <Text style={styles.cargoAmountText}>
-                                                {(c.cargoAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    {c.cargoType && c.cargoType !== 'Rolling Cargo' && (
-                                        <View style={styles.qtyRow}>
-                                            <Text style={styles.fieldLabel}>Quantity:</Text>
-                                            <View style={styles.qtyBox}>
-                                                <TouchableOpacity
-                                                    disabled={c.quantity === 1}
-                                                    onPress={() => onCargoQuantity('minus', cargoIndex, p.id)}
-                                                    style={{ paddingRight: 5 }}
-                                                >
-                                                    <Ionicons name={'remove'} size={25} color={c.quantity === 1 ? "#d4d4d4ff" : undefined} />
-                                                </TouchableOpacity>
-                                                <Text style={styles.qtyText}>{c.quantity}</Text>
-                                                <TouchableOpacity
-                                                    onPress={() => onCargoQuantity('add', cargoIndex, p.id)}
-                                                    style={{ paddingLeft: 5 }}
-                                                >
-                                                    <Ionicons name={'add'} size={25} />
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-                                    )}
-                                </View>
+                    {(p.cargo ?? []).map((c: any, cargoIndex: number) => (
+                        <View key={`${p.id}-${cargoIndex}`}>
+                            {cargoIndex !== 0 && (
+                                <TouchableOpacity
+                                    onPress={() => onRemoveCargo(p.seatNumber, index, cargoIndex)}
+                                    style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10, alignSelf: 'flex-end' }}
+                                >
+                                    <Ionicons name={'close'} size={20} color={'#cf2a3a'} />
+                                </TouchableOpacity>
+                            )}
 
-                                <View style={{ width: '100%' }}>
-                                    <Text style={styles.fieldLabel}>Cargo Type:</Text>
-                                    <View style={styles.dropdownWrap}>
-                                        <Dropdown
-                                            onChange={(item) => onUpdateCargo(p.id, cargoIndex, 'cargoType', item.label, 'cargoTypeID', item.value)}
-                                            value={c.cargoTypeID}
-                                            data={cargoProperties?.data?.cargo_types?.map((type: any) => ({ label: type.name, value: type.id })) ?? []}
-                                            labelField="label"
-                                            valueField="value"
-                                            placeholder="Select Cargo Type"
-                                            style={styles.dropdownStyle}
-                                            containerStyle={{ alignSelf: 'flex-start', width: '90%' }}
-                                            selectedTextStyle={styles.dropdownSelectedText}
-                                            renderRightIcon={() => <Ionicons name="chevron-down" size={18} />}
-                                            dropdownPosition="bottom"
-                                            renderItem={(item) => (
-                                                <View style={{ width: '80%', padding: 8 }}>
-                                                    <Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text>
-                                                </View>
-                                            )}
+                            <View style={styles.rowBetween}>
+                                <View style={styles.colStart}>
+                                    <Text style={styles.cargoAmountLabel}>Amount:</Text>
+                                    <View style={styles.cargoAmountBox}>
+                                        <Text style={{ fontSize: 20, color: '#000' }}>₱ </Text>
+                                        <TextInput
+                                            value={c.cargoAmount != null ? String(c.cargoAmount) : ''}
+                                            onChangeText={text => onUpdateCargoValue(p.id, cargoIndex, 'cargoAmount', Number(text) || 0)}
+                                            keyboardType="numeric"
+                                            placeholder="0.00"
+                                            style={styles.cargoAmountText}
                                         />
                                     </View>
                                 </View>
 
-                                {c.cargoType === 'Rolling Cargo' ? (
-                                    <View>
-                                        <View style={{ width: '100%', marginTop: 10 }}>
-                                            <Text style={styles.fieldLabel}>Brand:</Text>
-                                            <View style={styles.dropdownWrap}>
-                                                <Dropdown
-                                                    onChange={(item) => onUpdateCargo(p.id, cargoIndex, 'cargoBrand', item.label, 'cargoBrandID', item.value)}
-                                                    value={c.cargoBrandID}
-                                                    data={cargoProperties?.data?.brands?.map((b: any) => ({ label: b.name, value: b.id })) ?? []}
-                                                    labelField="label"
-                                                    valueField="value"
-                                                    placeholder="Select Brand"
-                                                    style={styles.dropdownStyle}
-                                                    containerStyle={{ alignSelf: 'flex-start', width: '90%' }}
-                                                    selectedTextStyle={styles.dropdownSelectedText}
-                                                    renderRightIcon={() => <Ionicons name="chevron-down" size={15} />}
-                                                    dropdownPosition="bottom"
-                                                    renderItem={(item) => (
-                                                        <View style={{ width: '80%', padding: 8 }}>
-                                                            <Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text>
-                                                        </View>
-                                                    )}
-                                                />
-                                            </View>
-                                        </View>
-                                        <View style={{ marginTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
-                                            <View style={{ width: '50%' }}>
-                                                <Text style={styles.fieldLabel}>{'Specifications (CC):'}</Text>
-                                                <View style={[styles.dropdownWrap, { height: 45, justifyContent: 'center' }]}>
-                                                    <Dropdown
-                                                        onChange={(item) => onUpdateCargo(p.id, cargoIndex, 'cargoSpecification', item.label, 'cargoSpecificationID', item.value)}
-                                                        value={c.cargoSpecificationID}
-                                                        data={cargoProperties?.data?.cargo_options?.filter((opt: any) => opt.specification).map((s: any) => ({ label: String(s.specification), value: s.id })) ?? []}
-                                                        labelField="label"
-                                                        valueField="value"
-                                                        placeholder="Select CC"
-                                                        style={styles.dropdownStyle}
-                                                        containerStyle={{ alignSelf: 'flex-start', width: '42%' }}
-                                                        selectedTextStyle={styles.dropdownSelectedText}
-                                                        renderRightIcon={() => <Ionicons name="chevron-down" size={15} />}
-                                                        dropdownPosition="bottom"
-                                                        renderItem={(item) => (
-                                                            <View style={{ width: '80%', padding: 8 }}>
-                                                                <Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text>
-                                                            </View>
-                                                        )}
-                                                    />
-                                                </View>
-                                            </View>
-                                            <View style={{ width: '48%' }}>
-                                                <Text style={styles.fieldLabel}>Plate#:</Text>
-                                                <View style={[styles.dropdownWrap, { height: 45, justifyContent: 'center' }]}>
-                                                    <TextInput
-                                                        value={c.cargoPlateNo}
-                                                        onChangeText={(text) => onUpdateCargoValue(p.id, cargoIndex, 'cargoPlateNo', text)}
-                                                        placeholder='Plate#'
-                                                        style={styles.textInput}
-                                                    />
-                                                </View>
-                                            </View>
+                                {c.cargoType && c.cargoType !== 'Rolling Cargo' && (
+                                    <View style={styles.qtyRow}>
+                                        <Text style={styles.fieldLabel}>Quantity:</Text>
+                                        <View style={styles.qtyBox}>
+                                            <TouchableOpacity
+                                                disabled={c.quantity === 1}
+                                                onPress={() => onCargoQuantity('minus', cargoIndex, p.id)}
+                                                style={{ paddingRight: 5 }}
+                                            >
+                                                <Ionicons name={'remove'} size={25} color={c.quantity === 1 ? "#d4d4d4ff" : undefined} />
+                                            </TouchableOpacity>
+                                            <Text style={styles.qtyText}>{c.quantity}</Text>
+                                            <TouchableOpacity
+                                                onPress={() => onCargoQuantity('add', cargoIndex, p.id)}
+                                                style={{ paddingLeft: 5 }}
+                                            >
+                                                <Ionicons name={'add'} size={25} />
+                                            </TouchableOpacity>
                                         </View>
                                     </View>
-                                ) : c.cargoType === 'Parcel' ? (
-                                    <View style={{ marginTop: 5 }}>
-                                        <Text style={styles.fieldLabel}>Parcel Category:</Text>
-                                        <View style={styles.dropdownWrap}>
-                                            <Dropdown
-                                                onChange={(item) => onUpdateCargo(p.id, cargoIndex, 'parcelCategory', item.label, 'parcelCategoryID', item.value)}
-                                                value={c.parcelCategoryID}
-                                                data={cargoProperties?.data?.parcel_categories?.map((category: any) => ({ label: category.name.slice(1, -1), value: category.id })) ?? []}
-                                                labelField="label"
-                                                valueField="value"
-                                                placeholder="Select Category"
-                                                style={styles.dropdownStyle}
-                                                containerStyle={{ alignSelf: 'flex-start', width: '85%' }}
-                                                selectedTextStyle={{ fontSize: 19, lineHeight: 35, fontWeight: '600', color: '#000' }}
-                                                renderRightIcon={() => <Ionicons name="chevron-down" size={15} />}
-                                                dropdownPosition="bottom"
-                                                renderItem={(item) => (
-                                                    <View style={{ width: '80%', padding: 8 }}>
-                                                        <Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text>
-                                                    </View>
-                                                )}
+                                )}
+                            </View>
+
+                            <View style={{ width: '100%' }}>
+                                <Text style={styles.fieldLabel}>Cargo Type:</Text>
+                                <View style={styles.dropdownWrap}>
+                                    <Dropdown
+                                        onChange={(item) => onUpdateCargoValue(p.id, cargoIndex, 'cargoType', item.label)}
+                                        value={c.cargoTypeID}
+                                        data={cargoProperties?.data?.cargo_types?.map((type: any) => ({ label: type.name, value: type.id })) ?? []}
+                                        labelField="label"
+                                        valueField="value"
+                                        placeholder="Select Cargo Type"
+                                        style={styles.dropdownStyle}
+                                        containerStyle={{ alignSelf: 'flex-start', width: '90%' }}
+                                        selectedTextStyle={styles.dropdownSelectedText}
+                                        renderRightIcon={() => <Ionicons name="chevron-down" size={18} />}
+                                        dropdownPosition="bottom"
+                                        renderItem={(item) => (
+                                            <View style={{ width: '80%', padding: 8 }}>
+                                                <Text style={{ fontSize: 18, color: '#000' }}>{item.label}</Text>
+                                            </View>
+                                        )}
+                                    />
+                                </View>
+                            </View>
+
+                            {c.cargoType === 'Rolling Cargo' ? (
+                                <View style={{ marginTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
+                                    <View style={{ width: '50%' }}>
+                                        <Text style={styles.fieldLabel}>Specifications (CC):</Text>
+                                        <View style={[styles.inputBorderShort, { height: 45, justifyContent: 'center' }]}>
+                                            <TextInput
+                                                value={c.cargoSpecification ?? ''}
+                                                onChangeText={(text) => onUpdateCargoValue(p.id, cargoIndex, 'cargoSpecification', text)}
+                                                placeholder="Enter CC"
+                                                keyboardType="numeric"
+                                                style={styles.textInput}
                                             />
                                         </View>
                                     </View>
-                                ) : (
-                                    <View />
-                                )}
-                            </View>
-                        );
-                    })}
+                                    <View style={{ width: '48%' }}>
+                                        <Text style={styles.fieldLabel}>Plate#:</Text>
+                                        <View style={[styles.inputBorderShort, { height: 45, justifyContent: 'center' }]}>
+                                            <TextInput
+                                                value={c.cargoPlateNo ?? ''}
+                                                onChangeText={(text) => onUpdateCargoValue(p.id, cargoIndex, 'cargoPlateNo', text)}
+                                                placeholder='Plate#'
+                                                style={styles.textInput}
+                                            />
+                                        </View>
+                                    </View>
+                                </View>
+                            ) : c.cargoType === 'Parcel' ? (
+                                <View style={{ marginTop: 5 }}>
+                                    <Text style={styles.fieldLabel}>Parcel Category:</Text>
+                                    <View style={styles.inputBorderShort}>
+                                        <TextInput
+                                            value={c.parcelCategory ?? ''}
+                                            onChangeText={(text) => onUpdateCargoValue(p.id, cargoIndex, 'parcelCategory', text)}
+                                            placeholder="Enter Parcel Category"
+                                            style={styles.textInput}
+                                        />
+                                    </View>
+                                </View>
+                            ) : (
+                                <View />
+                            )}
+                        </View>
+                    ))}
                 </View>
             )}
         </View>
@@ -600,7 +551,7 @@ export default function Forms({ errorForm }: FormProps) {
     const { passengers, setPassengers, updatePassenger, updateInfant, updateCargo } = usePassengers();
     const { vessel_id, routeID, isCargoable, approvedBy, setApprovedBy, setTotalFare } = useTrip();
     const { passesTypeID, passesTypeCode, passesTypeName } = usePassesType();
-    const { cargoProperties, paxCargoProperty } = useCargo();
+    const { cargoProperties } = useCargo();
 
     const [isLoading, setIsLoading] = useState(true);
     const [passengerType, setPassengerType] = useState<PassTypeProps[] | null>(null);
@@ -659,54 +610,6 @@ export default function Forms({ errorForm }: FormProps) {
     const paxsengerTypes = useMemo(() =>
         passengerType?.filter(t => t?.name !== 'Infant' && t?.name !== 'Passes') ?? [],
     [passengerType]);
-
-    const ComputedCargoAmount = useCallback((cargo: PaxCargoProperties) => {
-        if (!cargo || !cargoProperties) return { amount: 0, optionID: 0 };
-
-        let prop;
-        if (cargo.cargoType === 'Rolling Cargo') {
-            if (!cargo.cargoBrandID || !cargo.cargoSpecificationID) return { amount: 0, optionID: 0 };
-            prop = cargoProperties.data.cargo_options?.find(
-                (c: any) => c.cargo_type_id == cargo.cargoTypeID &&
-                    c.cargo_brand_id == cargo.cargoBrandID &&
-                    c.specification == cargo.cargoSpecification &&
-                    c.route_id == routeID
-            );
-            return { amount: prop ? Number(prop.price * cargo.quantity) : 0, optionID: prop?.id ?? 0 };
-        }
-        if (cargo.cargoType === 'Parcel') {
-            if (!cargo.parcelCategoryID) return { amount: 0, optionID: 0 };
-            prop = cargoProperties.data.cargo_options?.find(
-                (c: any) => c.parcel_category_id == cargo.parcelCategoryID && c.route_id == routeID
-            );
-            return { amount: prop ? Number(prop.price * cargo.quantity) : 0, optionID: prop?.id ?? 0 };
-        }
-        if (cargo.cargoType === 'Animal/Pet') {
-            const petType = cargoProperties.data.cargo_types?.find((t: any) => t.name === 'Animal/Pet');
-            prop = cargoProperties.data.cargo_options?.find(
-                (c: any) => c.cargo_type_id == petType?.id && c.route_id == routeID
-            );
-            return { amount: prop ? Number(prop.price * cargo.quantity) : 0, optionID: prop?.id ?? 0 };
-        }
-        return { amount: 0, optionID: 0 };
-    }, [cargoProperties, routeID]);
-
-    const passengerCargoSnapshot = useMemo(() =>
-        passengers
-            .filter(p => p.cargo?.length > 0)
-            .map(p => ({ id: p.id, cargo: p.cargo })),
-    [passengers]);
-
-    const cargoComputeMap = useMemo(() => {
-        const map: Record<string, { cargoAmount: number; cargoOptionID: number }[]> = {};
-        passengerCargoSnapshot.forEach(pax => {
-            map[pax.id] = pax.cargo.map((cargoItem: PaxCargoProperties) => {
-                const { amount, optionID } = ComputedCargoAmount(cargoItem);
-                return { cargoAmount: amount, cargoOptionID: optionID };
-            });
-        });
-        return map;
-    }, [passengerCargoSnapshot, cargoProperties, routeID]);
 
     const handleOnSearch = useCallback((text: string, paxId: string | number) => {
         const paxsSuggestions = formattedPaxList.filter(p =>
@@ -794,7 +697,6 @@ export default function Forms({ errorForm }: FormProps) {
                 };
             })
         );
-
     }, [paxlists, paxFares, vessel_id, routeID, setPassengers]);
 
     const handleClearAutoComplete = useCallback((paxId: number | string) => {
@@ -835,19 +737,20 @@ export default function Forms({ errorForm }: FormProps) {
         );
     }, [setPassengers]);
 
+    // Total fare derived directly from passenger fares + typed cargo amounts
     const computedFare = useMemo(() => {
         return passengers.reduce((sum, p) => {
             const passengerFare = Number(p.fare || 0);
-            const cargoTotal = (p.cargo ?? []).reduce((cargoSum, c) => {
-                return cargoSum + (Number.isFinite(c.cargoAmount) ? Number(c.cargoAmount) : 0);
+            const cargoTotal = (p.cargo ?? []).reduce((cargoSum: number, c: any) => {
+                return cargoSum + (Number.isFinite(Number(c.cargoAmount)) ? Number(c.cargoAmount) : 0);
             }, 0);
             return sum + passengerFare + cargoTotal;
         }, 0);
-    }, [passengers, paxCargoProperty]);
+    }, [passengers]);
 
     useEffect(() => {
-        setTotalFare(computedFare)
-    }, [computedFare])
+        setTotalFare(computedFare);
+    }, [computedFare]);
 
     const hasInfantChecker = useCallback((paxId: number | string, type_id: number) => {
         setPassengers(prev =>
@@ -864,7 +767,7 @@ export default function Forms({ errorForm }: FormProps) {
             prev.map(p => {
                 if (p.id != paxId) return p;
                 const isHasCargo = !p.hasCargo;
-                return { ...p, hasCargo: isHasCargo, cargo: isHasCargo ? [{ cargoAmount: 0.00, quantity: 1 }] : [] };
+                return { ...p, hasCargo: isHasCargo, cargo: isHasCargo ? [{ cargoAmount: 0, quantity: 1 }] : [] };
             })
         );
     }, [setPassengers]);
@@ -887,36 +790,6 @@ export default function Forms({ errorForm }: FormProps) {
         );
     }, [setPassengers]);
 
-    const handleOnUpdateCargo = useCallback((
-        paxId: string | number,
-        cargoIndex: number,
-        keyName: string,
-        keyValue: string,
-        keyId: string,
-        keyValueId: number
-    ) => {
-        setPassengers(prev =>
-            prev.map(p => {
-                if (p.id != paxId) return p;
-
-                const updatedCargo = p.cargo.map((c: any, index: number) => {
-                    if (index != cargoIndex) return c;
-                    const merged = { ...c, [keyName]: keyValue, [keyId]: keyValueId };
-                    const { amount, optionID } = ComputedCargoAmount(merged); // compute on the merged object
-                    return { ...merged, cargoAmount: amount, cargoOptionID: optionID };
-                });
-
-                const cargoTotal = updatedCargo.reduce((sum: number, c: any) => sum + (c.cargoAmount ?? 0), 0);
-
-                return {
-                    ...p,
-                    cargo: updatedCargo,
-                    fare: (p.originalFare ?? 0) + cargoTotal,
-                };
-            })
-        );
-    }, [setPassengers, ComputedCargoAmount]);
-
     const removeInfant = useCallback((seat: string | number, infantIndex: number) => {
         setPassengers(prev =>
             prev.map(p => {
@@ -931,7 +804,7 @@ export default function Forms({ errorForm }: FormProps) {
             prev.map((p, index) => {
                 if (p.seatNumber != seat || index != paxIndex) return p;
                 const updatedCargo = p.cargo.filter((_: any, i: number) => i !== cargoIndex);
-                const cargoTotal = updatedCargo.reduce((sum: number, c: any) => sum + (c.cargoAmount ?? 0), 0);
+                const cargoTotal = updatedCargo.reduce((sum: number, c: any) => sum + Number(c.cargoAmount ?? 0), 0);
                 return {
                     ...p,
                     cargo: updatedCargo,
@@ -949,17 +822,12 @@ export default function Forms({ errorForm }: FormProps) {
         setPassengers(prev =>
             prev.map(p => {
                 if (p.id != paxId) return p;
-
                 const updatedCargo = p.cargo.map((c: any, index: number) => {
                     if (index != cargoIndex) return c;
                     const newQty = operation === 'add' ? c.quantity + 1 : Math.max(1, c.quantity - 1);
-                    const merged = { ...c, quantity: newQty };
-                    const { amount, optionID } = ComputedCargoAmount(merged);
-                    return { ...merged, cargoAmount: amount, cargoOptionID: optionID };
+                    return { ...c, quantity: newQty };
                 });
-
-                const cargoTotal = updatedCargo.reduce((sum: number, c: any) => sum + (c.cargoAmount ?? 0), 0);
-
+                const cargoTotal = updatedCargo.reduce((sum: number, c: any) => sum + Number(c.cargoAmount ?? 0), 0);
                 return {
                     ...p,
                     cargo: updatedCargo,
@@ -967,7 +835,7 @@ export default function Forms({ errorForm }: FormProps) {
                 };
             })
         );
-    }, [setPassengers, ComputedCargoAmount]);
+    }, [setPassengers]);
 
     const handleAddPasses = useCallback(() => {
         const temp = Crypto.randomUUID();
@@ -1006,10 +874,12 @@ export default function Forms({ errorForm }: FormProps) {
         const paxTypeAndLists = async () => {
             try {
                 const passTypesFaresAndLists = await FetchPassengerType();
-                
+
                 if (!passTypesFaresAndLists.error) {
                     const types: PassTypeProps[] = passTypesFaresAndLists.types.map((type: any) => ({
-                        id: type.id, name: type?.name, code: type?.passenger_types_code,
+                        id: type.id,
+                        name: type?.name == 'Senior Citizen' ? 'Senior' : type?.name,
+                        code: type?.passenger_types_code,
                     }));
                     const fares: PaxFareProps[] = passTypesFaresAndLists.fares.map((fare: any) => ({
                         id: fare.id, fare: fare.fare, routes_id: fare.routes_id,
@@ -1032,7 +902,7 @@ export default function Forms({ errorForm }: FormProps) {
                 setIsLoading(false);
             }
         };
-        
+
         paxTypeAndLists();
     }, []);
 
@@ -1054,7 +924,6 @@ export default function Forms({ errorForm }: FormProps) {
                                 passengerType={passengerType}
                                 paxFares={paxFares}
                                 cargoProperties={cargoProperties}
-                                cargoComputeMap={cargoComputeMap}
                                 isCargoable={isCargoable}
                                 routeID={routeID}
                                 vessel_id={vessel_id}
@@ -1077,7 +946,6 @@ export default function Forms({ errorForm }: FormProps) {
                                 onInfantClearAutoComplete={handleInfantClearAutoComplete}
                                 onUpdatePassenger={updatePassenger}
                                 onUpdateInfant={updateInfant}
-                                onUpdateCargo={handleOnUpdateCargo}
                                 onUpdateCargoValue={updateCargo}
                                 onHasInfantChecker={hasInfantChecker}
                                 onHasCargoChecker={hasCargoChecker}
@@ -1173,408 +1041,413 @@ export default function Forms({ errorForm }: FormProps) {
     );
 }
 
-
 const styles = StyleSheet.create({
-  outerWrap: {
-    flex: 1,
-    marginTop: 10,
-    flexDirection: 'column',
-    gap: 20,
-  },
-  card: {
-    position: 'relative',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-    elevation: 5,
-  },
-  cardError: {
-    borderColor: '#cf2a3a',
-  },
-  cardNormal: {
-    borderColor: '#B3B3B3',
-  },
-  approvedCard: {
-    padding: 10,
-    backgroundColor: '#fff',
-    elevation: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#B3B3B3',
-  },
-  removePassBtn: {
-    position: 'absolute',
-    right: -5,
-    top: -15,
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  colStart: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  seatLabel: {
-    color: '#cf2a3a',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  seatNumber: {
-    textAlign: 'center',
-    fontWeight: 'bold',
-    fontSize: 20,
-    color: '#cf2a3a',
-    borderColor: '#cf2a3a',
-    backgroundColor: '#cf2a3b1a',
-    borderWidth: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 25,
-    borderRadius: 5,
-  },
-  fareLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#545454',
-  },
-  fareBox: {
-    borderColor: '#FFC107',
-    backgroundColor: '#ffc10727',
-    borderWidth: 2,
-    borderRadius: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-  },
-  fareCurrency: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#000',
-  },
-  fareInput: {
-    fontWeight: '900',
-    textAlign: 'right',
-    fontSize: 20,
-    color: '#000',
-  },
-  typeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
-  },
-  typeButtonBase: {
-    borderColor: '#cf2a3a',
-    borderWidth: 1,
-    paddingVertical: 9,
-    justifyContent: 'center',
-    width: '32%',
-    borderRadius: 5,
-  },
-  typeButtonActive: {
-    backgroundColor: '#cf2a3a',
-  },
-  typeButtonInactive: {
-    backgroundColor: 'transparent',
-  },
-  typeButtonTextActive: {
-    textAlign: 'center',
-    fontSize: 20,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  typeButtonTextInactive: {
-    textAlign: 'center',
-    fontSize: 20,
-    color: '#cf2a3a',
-    fontWeight: '600',
-  },
-  fieldLabel: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#545454',
-  },
-  inputBorder: {
-    borderWidth: 1,
-    borderColor: '#B3B3B3',
-    borderRadius: 5,
-    height: 55,
-    justifyContent: 'center',
-  },
-  inputBorderShort: {
-    borderWidth: 1,
-    borderColor: '#B3B3B3',
-    borderRadius: 5,
-    height: 50,
-    justifyContent: 'center',
-  },
-  genderRow: {
-    flexDirection: 'row',
-    gap: 5,
-    justifyContent: 'center',
-  },
-  genderButtonBase: {
-    borderColor: '#cf2a3a',
-    borderWidth: 1,
-    width: '49%',
-    borderRadius: 5,
-    justifyContent: 'center',
-    paddingVertical: 11,
-  },
-  genderButtonActive: {
-    backgroundColor: '#cf2a3a',
-  },
-  genderButtonInactive: {
-    backgroundColor: 'transparent',
-  },
-  genderTextActive: {
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  genderTextInactive: {
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#cf2a3a',
-  },
-  ageContactRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-end',
-  },
-  ageWrap: {
-    width: '40%',
-  },
-  contactWrap: {
-    width: '57.5%',
-  },
-  textInput: {
-    fontSize: 19,
-    fontWeight: '600',
-    color: '#000',
-  },
-  nationalityRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  checkboxRow: {
-    marginTop: 5,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
-  checkboxGroup: {
-    flexDirection: 'row',
-    gap: 20,
-  },
-  checkboxItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 15,
-  },
-  checkboxLabel: {
-    fontSize: 20,
-    color: '#000',
-  },
-  infantSection: {
-    marginTop: 30,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#949494',
-    paddingTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#cf2a3a',
-    marginBottom: 5,
-  },
-  addButton: {
-    backgroundColor: '#cf2a3a',
-    borderColor: '#cf2a3a',
-    borderWidth: 1,
-    padding: 8,
-    elevation: 3,
-    borderRadius: 5,
-    flexDirection: 'row',
-    gap: 5,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 18,
-  },
-  removeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  removeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  removeText: {
-    color: '#cf2a3a',
-    fontWeight: '600',
-    fontSize: 19,
-  },
-  infantGenderButtonBase: {
-    borderColor: '#cf2a3a',
-    borderWidth: 1,
-    width: '50%',
-    borderRadius: 5,
-    justifyContent: 'center',
-    paddingVertical: 12,
-  },
-  cargoSection: {
-    marginTop: 40,
-  },
-  cargoHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 10,
-    borderTopColor: '#949494',
-    borderTopWidth: 1,
-    paddingTop: 8,
-  },
-  cargoAmountLabel: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#494949',
-  },
-  cargoAmountBox: {
-    borderColor: '#FFC107',
-    backgroundColor: '#ffc10727',
-    borderWidth: 2,
-    borderRadius: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-  },
-  cargoAmountText: {
-    fontWeight: 'bold',
-    textAlign: 'right',
-    fontSize: 20,
-    color: '#000',
-  },
-  qtyRow: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-  },
-  qtyBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderColor: '#B3B3B3',
-    paddingHorizontal: 5,
-    borderWidth: 1,
-    borderRadius: 5,
-  },
-  qtyText: {
-    paddingHorizontal: 14,
-    fontSize: 20,
-    fontWeight: 'bold',
-    borderRightColor: '#B3B3B3',
-    borderLeftColor: '#B3B3B3',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    paddingVertical: 5,
-  },
-  dropdownWrap: {
-    borderColor: '#B3B3B3',
-    borderWidth: 1,
-    borderRadius: 5,
-  },
-  dropdownStyle: {
-    height: 50,
-    width: '100%',
-    paddingHorizontal: 10,
-  },
-  dropdownSelectedText: {
-    fontSize: 18,
-    lineHeight: 35,
-    fontWeight: '600',
-    color: '#000',
-  },
-  addPassesBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    backgroundColor: '#cf2a3a',
-    elevation: 2,
-  },
-  addPassesText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  autocompleteContainer: {
-    borderWidth: 1,
-    borderColor: '#B3B3B3',
-    borderRadius: 5,
-    height: 55,
-    justifyContent: 'center',
-  },
-  autocompleteTextInput: {
-    backgroundColor: '#fff',
-    color: '#000',
-    borderWidth: 1,
-    borderColor: 'transparent',
-    borderRadius: 2,
-    fontWeight: '600',
-    fontSize: 20,
-    paddingHorizontal: 5,
-    height: 50,
-  },
-  autocompleteRightButtons: {
-    right: 8,
-    backgroundColor: '#fff',
-    alignSelf: 'center',
-  },
-  autocompleteInputContainer: {
-    borderRadius: 0,
-    borderColor: '#B3B3B3',
-  },
-  autocompleteItem: {
-    color: '#000',
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    borderRadius: 5,
-    fontSize: 16,
-    paddingHorizontal: 5,
-    paddingVertical: 15,
-  },
-  infantCardWrap: {
-    padding: 10,
-    backgroundColor: '#fff',
-    elevation: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#B3B3B3',
-  },
-  infantTextInput: {
-    fontSize: 19,
-    fontWeight: '600',
-  },
-  infantInputBorder: {
-    borderColor: '#B3B3B3',
-    borderWidth: 1,
-    borderRadius: 5,
-    height: 45,
-    justifyContent: 'center',
-  },
+    outerWrap: {
+        flex: 1,
+        marginTop: 10,
+        flexDirection: 'column',
+        gap: 20,
+    },
+    card: {
+        position: 'relative',
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+        backgroundColor: '#fff',
+        elevation: 5,
+    },
+    cardError: {
+        borderColor: '#cf2a3a',
+    },
+    cardNormal: {
+        borderColor: '#B3B3B3',
+    },
+    approvedCard: {
+        padding: 10,
+        backgroundColor: '#fff',
+        elevation: 5,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#B3B3B3',
+    },
+    removePassBtn: {
+        position: 'absolute',
+        right: -5,
+        top: -15,
+    },
+    rowBetween: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    colStart: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+    },
+    seatLabel: {
+        color: '#cf2a3a',
+        fontSize: 16,
+        fontWeight: '900',
+    },
+    seatNumber: {
+        textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: 20,
+        color: '#cf2a3a',
+        borderColor: '#cf2a3a',
+        backgroundColor: '#cf2a3b1a',
+        borderWidth: 1,
+        paddingVertical: 8,
+        paddingHorizontal: 25,
+        borderRadius: 5,
+    },
+    fareLabel: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#545454',
+    },
+    fareBox: {
+        borderColor: '#FFC107',
+        backgroundColor: '#ffc10727',
+        borderWidth: 2,
+        borderRadius: 5,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 15,
+        width: 150,
+        justifyContent: 'space-between',
+    },
+    fareCurrency: {
+        fontSize: 16,
+        fontWeight: '900',
+        color: '#000',
+    },
+    fareInput: {
+        fontWeight: '900',
+        textAlign: 'right',
+        fontSize: 20,
+        color: '#000',
+    },
+    typeRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 5,
+    },
+    typeButtonBase: {
+        borderColor: '#cf2a3a',
+        borderWidth: 1,
+        paddingVertical: 9,
+        justifyContent: 'center',
+        width: '32%',
+        borderRadius: 5,
+    },
+    typeButtonActive: {
+        backgroundColor: '#cf2a3a',
+    },
+    typeButtonInactive: {
+        backgroundColor: 'transparent',
+    },
+    typeButtonTextActive: {
+        textAlign: 'center',
+        fontSize: 20,
+        color: '#fff',
+        fontWeight: '600',
+    },
+    typeButtonTextInactive: {
+        textAlign: 'center',
+        fontSize: 20,
+        color: '#cf2a3a',
+        fontWeight: '600',
+    },
+    fieldLabel: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#545454',
+    },
+    inputBorder: {
+        borderWidth: 1,
+        borderColor: '#B3B3B3',
+        borderRadius: 5,
+        height: 55,
+        justifyContent: 'center',
+    },
+    inputBorderShort: {
+        borderWidth: 1,
+        borderColor: '#B3B3B3',
+        borderRadius: 5,
+        height: 50,
+        justifyContent: 'center',
+        paddingHorizontal: 10,
+    },
+    genderRow: {
+        flexDirection: 'row',
+        gap: 5,
+        justifyContent: 'center',
+    },
+    genderButtonBase: {
+        borderColor: '#cf2a3a',
+        borderWidth: 1,
+        width: '49%',
+        borderRadius: 5,
+        justifyContent: 'center',
+        paddingVertical: 11,
+    },
+    genderButtonActive: {
+        backgroundColor: '#cf2a3a',
+    },
+    genderButtonInactive: {
+        backgroundColor: 'transparent',
+    },
+    genderTextActive: {
+        textAlign: 'center',
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#fff',
+    },
+    genderTextInactive: {
+        textAlign: 'center',
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#cf2a3a',
+    },
+    ageContactRow: {
+        marginTop: 10,
+        flexDirection: 'row',
+        gap: 8,
+        alignItems: 'flex-end',
+    },
+    ageWrap: {
+        width: '40%',
+    },
+    contactWrap: {
+        width: '57.5%',
+    },
+    textInput: {
+        fontSize: 19,
+        fontWeight: '600',
+        color: '#000',
+    },
+    nationalityRow: {
+        marginTop: 10,
+        flexDirection: 'row',
+        gap: 8,
+    },
+    checkboxRow: {
+        marginTop: 5,
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+    },
+    checkboxGroup: {
+        flexDirection: 'row',
+        gap: 20,
+    },
+    checkboxItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 15,
+    },
+    checkboxLabel: {
+        fontSize: 20,
+        color: '#000',
+    },
+    infantSection: {
+        marginTop: 30,
+    },
+    sectionHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        borderTopWidth: 1,
+        borderTopColor: '#949494',
+        paddingTop: 8,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '900',
+        color: '#cf2a3a',
+        marginBottom: 5,
+    },
+    addButton: {
+        backgroundColor: '#cf2a3a',
+        borderColor: '#cf2a3a',
+        borderWidth: 1,
+        padding: 8,
+        elevation: 3,
+        borderRadius: 5,
+        flexDirection: 'row',
+        gap: 5,
+        alignItems: 'center',
+    },
+    addButtonText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 18,
+    },
+    removeRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    removeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    removeText: {
+        color: '#cf2a3a',
+        fontWeight: '600',
+        fontSize: 19,
+    },
+    infantGenderButtonBase: {
+        borderColor: '#cf2a3a',
+        borderWidth: 1,
+        width: '50%',
+        borderRadius: 5,
+        justifyContent: 'center',
+        paddingVertical: 12,
+    },
+    cargoSection: {
+        marginTop: 40,
+    },
+    cargoHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        marginBottom: 10,
+        borderTopColor: '#949494',
+        borderTopWidth: 1,
+        paddingTop: 8,
+    },
+    cargoAmountLabel: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#494949',
+    },
+    cargoAmountBox: {
+        borderColor: '#FFC107',
+        backgroundColor: '#ffc10727',
+        borderWidth: 2,
+        borderRadius: 5,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 15,
+        paddingVertical: 8,
+        width: 150,
+        justifyContent: 'space-between',
+    },
+    cargoAmountText: {
+        fontWeight: 'bold',
+        textAlign: 'right',
+        fontSize: 20,
+        color: '#000',
+        minWidth: 80,
+    },
+    qtyRow: {
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+    },
+    qtyBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderColor: '#B3B3B3',
+        paddingHorizontal: 5,
+        borderWidth: 1,
+        borderRadius: 5,
+    },
+    qtyText: {
+        paddingHorizontal: 14,
+        fontSize: 20,
+        fontWeight: 'bold',
+        borderRightColor: '#B3B3B3',
+        borderLeftColor: '#B3B3B3',
+        borderLeftWidth: 1,
+        borderRightWidth: 1,
+        paddingVertical: 5,
+    },
+    dropdownWrap: {
+        borderColor: '#B3B3B3',
+        borderWidth: 1,
+        borderRadius: 5,
+    },
+    dropdownStyle: {
+        height: 50,
+        width: '100%',
+        paddingHorizontal: 10,
+    },
+    dropdownSelectedText: {
+        fontSize: 18,
+        lineHeight: 35,
+        fontWeight: '600',
+        color: '#000',
+    },
+    addPassesBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderRadius: 8,
+        backgroundColor: '#cf2a3a',
+        elevation: 2,
+    },
+    addPassesText: {
+        color: '#fff',
+        fontWeight: '600',
+    },
+    autocompleteContainer: {
+        borderWidth: 1,
+        borderColor: '#B3B3B3',
+        borderRadius: 5,
+        height: 55,
+        justifyContent: 'center',
+    },
+    autocompleteTextInput: {
+        backgroundColor: '#fff',
+        color: '#000',
+        borderWidth: 1,
+        borderColor: 'transparent',
+        borderRadius: 2,
+        fontWeight: '600',
+        fontSize: 20,
+        paddingHorizontal: 5,
+        height: 50,
+    },
+    autocompleteRightButtons: {
+        right: 8,
+        backgroundColor: '#fff',
+        alignSelf: 'center',
+    },
+    autocompleteInputContainer: {
+        borderRadius: 0,
+        borderColor: '#B3B3B3',
+    },
+    autocompleteItem: {
+        color: '#000',
+        backgroundColor: '#f0f0f0',
+        justifyContent: 'center',
+        borderRadius: 5,
+        fontSize: 16,
+        paddingHorizontal: 5,
+        paddingVertical: 15,
+    },
+    infantCardWrap: {
+        padding: 10,
+        backgroundColor: '#fff',
+        elevation: 5,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#B3B3B3',
+    },
+    infantTextInput: {
+        fontSize: 19,
+        fontWeight: '600',
+    },
+    infantInputBorder: {
+        borderColor: '#B3B3B3',
+        borderWidth: 1,
+        borderRadius: 5,
+        height: 45,
+        justifyContent: 'center',
+    },
 });

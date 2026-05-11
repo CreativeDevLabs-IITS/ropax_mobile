@@ -82,7 +82,7 @@ export const SeatPlan: React.FC<SeatProps> = React.memo(({ start, limit, skipPat
     return (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
             {items.map((seat) => {
-                const seatKey = `${letter}${seat}`;
+                const seatKey = `${seat}${letter}`;
                 const booked = bookedSeatsMap[seatKey];
                 const isPassenger = passengerSeats?.has(seatKey);
                 const inChannel = seatChannel?.has(seatKey) ?? false;
@@ -148,7 +148,7 @@ const L1Vessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
     const channelRef = useRef<any>(null);
 
     const isTouristPaxAccom = useMemo(() =>
-        passengers.some(p => p.hasScanned === true && p.accommodation === 'Tourist')
+        passengers.some(p => p.hasScanned === true && p.accommodation === 'Economy')
     , [passengers]);
 
     useEffect(() => {
@@ -245,12 +245,19 @@ const L1Vessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
     }, []);
 
     useEffect(() => {
+        let isMounted = true; 
+
         const channel = async () => {
             const { data } = await supabase.from('seats_selections').select('*').eq('trip_id', id);
             const selectedSeats = data?.map((d: any) => d.seat_number);
+
+            if (!isMounted) return;
+
             setSeatSelectionChannel(selectedSeats || []);
 
             const listen = supabase.channel('custom-insert-channel').on('postgres_changes', { event: '*', schema: 'public', table: 'seats_selections' }, (payload) => {
+                if (!isMounted) return;
+
                 if (payload.eventType == 'INSERT') {
                     const newData: any = payload.new;
                     const { seat_number, trip_id } = newData;
@@ -269,21 +276,26 @@ const L1Vessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
         };
 
         channel();
+
         return () => {
-            channelRef.current.unsubscribe();
-            channelRef.current = null;
+            isMounted = false; // ✅ mark as unmounted
+
+            // ✅ only unsubscribe if the channel was actually set
+            if (channelRef.current) {
+                channelRef.current.unsubscribe();
+                channelRef.current = null;
+            }
         };
     }, [id]);
 
-    const BClassAccomsOptions = ['b class','b-class', 'business class', 'deluxe'];
-    const touristAccoms = ['tourist', 'economy'];
+    const BClassAccomsOptions = ['deluxe'];
+    const touristAccoms = ['economy'];
 
     const passengerSeats = useMemo(() => new Set(passengers.map((p) => p.seatNumber)), [passengers]);
     const TouristAccoms = useMemo(() => accommodations?.find((accom) => touristAccoms.includes(accom?.name.toLowerCase())), [accommodations]);
     const BClassAccomms = useMemo(() => accommodations?.find((accom) => BClassAccomsOptions.includes(accom?.name.toLocaleLowerCase())), [accommodations]);
 
     const seatChannel = useMemo(() => new Set(seatSelectionChannel), [seatSelectionChannel]);
-    console.log('trip accom', tripAccom)
 
     return (
         <View style={{ width: '100%', height: height + 290, backgroundColor: '#FAFAFA', marginTop: 20, paddingTop: 10, borderRadius: 50 }}>

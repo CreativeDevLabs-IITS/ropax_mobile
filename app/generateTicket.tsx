@@ -169,7 +169,7 @@ export default function TicketGenerator() {
         }
     };
 
-    const buildPrintBytes = useCallback((): Uint8Array => {
+    const buildPrintBytes = useCallback((asCopy: boolean): Uint8Array => {
         const ESC = 0x1B;
         const GS  = 0x1D;
         const LF  = 0x0A;
@@ -212,7 +212,7 @@ export default function TicketGenerator() {
         let vesselTextPad = 0;
 
         if(vessel.length > 11) {
-            vesselTextPad = 10;
+            vesselTextPad = 6;
         }else {
             vesselTextPad = 14;
         }
@@ -226,7 +226,14 @@ export default function TicketGenerator() {
         println('MOTORBOAT SERVICE');
         push(LF)
         boldOff();
-        println('TICKET - NOT AN OFFICIAL RECEIPT');
+
+        if(asCopy == false) {
+            println('TICKET - NOT AN OFFICIAL RECEIPT');
+        }else {
+            boldOn();
+            println('TICKET - STATION COPY');
+            boldOff();
+        }
         println('--------------------------------');
 
         boldOn();
@@ -243,7 +250,7 @@ export default function TicketGenerator() {
         alignLeft();
 
         println(
-            padRight('Vessel:', 16) +
+            padRight('Vessel:', 14) +
             padLeft(`${vessel}`, vesselTextPad)
         )
         println(
@@ -256,7 +263,7 @@ export default function TicketGenerator() {
         )
         println('--------------------------------');
 
-        if (refNumber) {
+        if (refNumber && asCopy == false) {
             alignCenter();
             boldOn();
             println(`${refNumber}`)
@@ -274,9 +281,10 @@ export default function TicketGenerator() {
             push(GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30);
 
             push(LF);
+
+            println('--------------------------------');
         }
 
-        println('--------------------------------');
         
         alignLeft();
         if (passengers?.length > 0) {
@@ -419,21 +427,23 @@ export default function TicketGenerator() {
             println('--------------------------------');
         }
 
-        alignLeft();
-        println('TERMS AND CONDITIONS');
-        println('- Boarding closes 30 mins before');
-        println('  departure.');
-        println('- Present valid ID w/ matching');
-        println('  name.');
-        println('- Service fee is non-refundable.');
-        println('- Pre-Departure Refund: 10%');
-        println('  charge.');
-        println('- Post-Departure Refund: 20%');
-        println('  charge.');
-        println('- REFUND VALID WITHIN 7 DAYS');
-        println('  OF DEPARTURE ONLY.');
-
-        fontNormal();
+        if(asCopy == false) {
+            alignLeft();
+            println('TERMS AND CONDITIONS');
+            println('- Boarding closes 30 mins before');
+            println('  departure.');
+            println('- Present valid ID w/ matching');
+            println('  name.');
+            println('- Service fee is non-refundable.');
+            println('- Pre-Departure Refund: 10%');
+            println('  charge.');
+            println('- Post-Departure Refund: 20%');
+            println('  charge.');
+            println('- REFUND VALID WITHIN 7 DAYS');
+            println('  OF DEPARTURE ONLY.');
+    
+            fontNormal();
+        }
         push(LF, LF, LF, LF, LF, LF);
         push(GS, 0x56, 0x41, 0x00);
 
@@ -441,7 +451,7 @@ export default function TicketGenerator() {
     }, [vessel, mobileCode, origin, destination, tripDate, time, 
     refNumber, passengers, totalFare, cashTendered, fareChange, note]);
 
-    const printViaBluetooth = async () => {
+    const printViaBluetooth = async (asCopy: boolean) => {
         if (!connectedDevice) {
             Alert.alert('No printer connected', 'Please connect to a Bluetooth printer first.');
             startScan();
@@ -470,7 +480,7 @@ export default function TicketGenerator() {
                 return;
             }   
 
-            const printData = buildPrintBytes();
+            const printData = buildPrintBytes(asCopy);
 
             const toBase64 = (chunk: Uint8Array): string => {
                 let binary = '';
@@ -491,8 +501,6 @@ export default function TicketGenerator() {
 
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
-
-            Alert.alert('Success', 'Ticket printed successfully!');
         } catch (error: any) {
             Alert.alert('Print failed', error.message);
         } finally {
@@ -632,10 +640,10 @@ export default function TicketGenerator() {
                                         </View>
                                     
                                         <View style={{ paddingVertical: 5 }}>
-                                            {passengers.some((p) => p?.accommodation == 'Business Class' || p?.accommodation == 'B-Class' || p?.accommodation == 'B Class') && (
+                                            {passengers.some((p) => p?.accommodation == 'Business Class' || p?.accommodation == 'B-Class' || p?.accommodation == 'B Class' || p?.accommodation == 'Deluxe') && (
                                                 <View style={{ marginTop: 5}}>
-                                                    <Text style={{ fontSize: 14, fontWeight: '900', marginBottom: 5,color: '#000' }}>B-Class</Text>
-                                                    {passengers.filter((p) => p?.accommodation == 'Business Class' || p?.accommodation == 'B-Class' || p?.accommodation == 'B Class')
+                                                    <Text style={{ fontSize: 14, fontWeight: '900', marginBottom: 5,color: '#000' }}>{passengers[0].accommodation}</Text>
+                                                    {passengers.filter((p) => p?.accommodation == 'Business Class' || p?.accommodation == 'B-Class' || p?.accommodation == 'B Class' || p?.accommodation == 'Deluxe')
                                                     .map((p) => (
                                                         <View key={p.seatNumber} style={{ flexDirection: 'column', marginBottom: 15 }}>
                                                             <Text style={{ fontSize: 13, width: '40%', color: '#000' }}>{`Name: ${p.name?.split(',')[1]?.trim()} ${p.name?.split(',')[0]}`}</Text>
@@ -648,10 +656,10 @@ export default function TicketGenerator() {
                                                     ))}
                                                 </View>
                                             )}
-                                            {passengers.some((p) => p?.accommodation == 'Tourist') && (
+                                            {passengers.some((p) => p?.accommodation == 'Tourist' || p?.accommodation == 'Economy') && (
                                                 <>
-                                                    <Text style={{ fontSize: 14, fontWeight: '900', marginBottom: 5, color: '#000' }}>Tourist</Text>
-                                                    {passengers.filter((p) => p?.accommodation == 'Tourist')
+                                                    <Text style={{ fontSize: 14, fontWeight: '900', marginBottom: 5, color: '#000' }}>{passengers[0].accommodation}</Text>
+                                                    {passengers.filter((p) => p?.accommodation == 'Tourist' || p?.accommodation == 'Economy')
                                                     .map((p) => (
                                                         <View key={p.seatNumber} style={{ flexDirection: 'column', marginBottom: 15 }}>
                                                             <Text style={{ fontSize: 13, width: '40%', color: '#000' }}>{`Name: ${p.name?.split(',')[1]?.trim()} ${p.name?.split(',')[0]}`}</Text>
@@ -767,7 +775,7 @@ export default function TicketGenerator() {
 
             <View style={{ width: '90%', alignSelf: 'center', gap: 10, zIndex: 5, top: -90 }}>
                 <TouchableOpacity
-                    onPress={printViaBluetooth}
+                    onPress={() =>printViaBluetooth(false)}
                     disabled={bleLoading}
                     style={{ backgroundColor: '#cf2a3a', borderRadius: 8, paddingVertical: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -777,10 +785,23 @@ export default function TicketGenerator() {
                         </Text>
                     </View>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => clearAll()} style={{ borderRadius: 8, paddingVertical: 10, borderColor: '#cf2a3a', backgroundColor: '#fff', borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
-                    <Ionicons name={'checkmark'} color={'#cf2a3a'} size={24} />
-                    <Text style={{ color: '#cf2a3a', fontWeight: 'bold', fontSize: 18 }}>Done</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <TouchableOpacity
+                        onPress={() =>printViaBluetooth(true)}
+                        disabled={bleLoading}
+                        style={{ backgroundColor: '#FCCA03', borderRadius: 8, paddingVertical: 12, width: '49%' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                            <Ionicons name='copy' size={20} color="#000" />
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>
+                               Print Copy
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => clearAll()} style={{ borderRadius: 8, paddingVertical: 12, width: '49%', backgroundColor: '#25AD76', flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
+                        <Ionicons name={'checkmark'} color={'#fff'} size={24} />
+                        <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Done</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </View>
     );
