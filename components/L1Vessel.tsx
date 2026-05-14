@@ -65,9 +65,9 @@ export const SeatPlan: React.FC<SeatProps> = React.memo(({ start, limit, skipPat
 
     const hasSeatAvailable = useMemo(() => {
         return items.some(seat => {
-            const booked = bookedSeatsMap[`${letter}${seat}`]
-            const isPassenger = passengerSeats?.has(`${letter}${seat}`);
-            const inChannel = seatChannel?.has(`${letter}${seat}`) ?? false;
+            const booked = bookedSeatsMap[`${seat}${letter}`]
+            const isPassenger = passengerSeats?.has(`${seat}${letter}`);
+            const inChannel = seatChannel?.has( `${seat}${letter}`) ?? false;
 
             return !booked && !isPassenger && !inChannel;
         })

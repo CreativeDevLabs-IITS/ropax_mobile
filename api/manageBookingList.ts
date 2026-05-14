@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 
 
-export async function FetchManageBookingList(date: string, search: string | null) {
+export async function FetchManageBookingList(date: string, search: string | null, stationId?: number | null) {
     const extras = Constants.expoConfig?.extra ?? {};
     const API_KEY = extras.API_KEY as string;
     const API_URL = extras.API_URL as string;
@@ -24,7 +24,7 @@ export async function FetchManageBookingList(date: string, search: string | null
                 'Origin': ORIGIN,
                 'Authorization': `${token}`
             },
-            body: JSON.stringify({ date, search })
+            body: JSON.stringify({ date, search, stationId })
         });
 
         const response = await res.json();

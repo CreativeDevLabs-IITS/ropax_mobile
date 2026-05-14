@@ -331,7 +331,8 @@ export default function ManualBooking() {
         const boldOff      = () => push(ESC, 0x45, 0x00);
         const fontNormal   = () => push(GS, 0x21, 0x00);
 
-        // ── Header ──────────────────────────────────────────────
+        const vesselPad = tripInfo?.vessel.length > 12 ? 8 : 16;
+
         push(ESC, 0x40);
         alignCenter();
         boldOn();
@@ -347,13 +348,12 @@ export default function ManualBooking() {
 
         if (tripInfo) {
             println(padRight('Route:', 16)     + padLeft(tripInfo.mobile_code ?? '', 16));
-            println(padRight('Vessel:', 16)    + padLeft(tripInfo.vessel ?? '', 16));
+            println(padRight('Vessel:', 16)    + padLeft(tripInfo.vessel ?? '', vesselPad));
             println(padRight('Departure:', 16) + padLeft(tripInfo.departure ?? '', 16));
         }
 
         println('--------------------------------');
 
-        // ── Accommodation groups ─────────────────────────────────
         const bClassGroup  = printableData.accommodationGroup.filter(g =>
             ['Business Class', 'B-Class', 'B Class', 'Deluxe', 'Deluxe Class'].includes(g.accommodation)
         );
@@ -361,7 +361,6 @@ export default function ManualBooking() {
             g.accommodation === 'Tourist'
         );
 
-        // helper: print one accommodation section
         const printAccomSection = (label: string, groups: typeof bClassGroup) => {
             boldOn(); println(`${label}:`); boldOff();
 
@@ -371,18 +370,18 @@ export default function ManualBooking() {
                     g.passenger.forEach(p => {
                         // format: @300 R x2  ₱600.00
                         const fareLabel  = `@${Number(p.pax_fare).toFixed(0)}`;
-                        const typeCount  = `${p.type} x${p.passenger_count}`;
+                        const typeCount  = `${p.type}   x${p.passenger_count}`;
                         const amountStr  = `P${Number(p.total_amount).toFixed(2)}`;
                         println(
-                            padRight(fareLabel, 8) +
                             padRight(typeCount, 14) +
+                            padRight(fareLabel, 12) +
                             padLeft(amountStr, 10)
                         );
                         subtotal += Number(p.total_amount);
                     });
                 });
                 push(LF);
-                println(padRight('  Subtotal:', 24) + padLeft(`P${subtotal.toFixed(2)}`, 8));
+                println(padRight('  Subtotal:', 18) + padLeft(`P${subtotal.toFixed(2)}`, 5));
             } else {
                 println('  No booking');
             }
@@ -393,7 +392,6 @@ export default function ManualBooking() {
         printAccomSection('B-CLASS ACCOMMODATION', bClassGroup);
         printAccomSection('TOURIST ACCOMMODATION', touristGroup);
 
-        // ── Cargo ────────────────────────────────────────────────
         boldOn(); println('CARGO:'); boldOff();
 
         const cargos = printableData.cargos ?? [];
@@ -401,7 +399,6 @@ export default function ManualBooking() {
         if (cargos.length > 0) {
             let cargoSubtotal = 0;
             cargos.forEach(c => {
-                // build a readable label from whatever fields are available
                 let desc = 'Uncategorized';
                 if (c.cargo_type === 'Rolling Cargo' && (c.brand || c.specification)) {
                     desc = `${c.brand ?? ''} ${c.specification ?? ''}`.trim();
@@ -421,7 +418,7 @@ export default function ManualBooking() {
                 cargoSubtotal += Number(c.total_amount);
             });
             push(LF);
-            println(padRight('  Subtotal:', 24) + padLeft(`P${cargoSubtotal.toFixed(2)}`, 8));
+            println(padRight('  Subtotal:', 18) + padLeft(`P${cargoSubtotal.toFixed(2)}`, 5));
         } else {
             println('  No cargo');
         }
@@ -429,7 +426,6 @@ export default function ManualBooking() {
         push(LF);
         println('--------------------------------');
 
-        // ── Expenses ─────────────────────────────────────────────
         boldOn(); println('EXPENSES:'); boldOff();
 
         const expenses = printableData.expenses ?? [];
@@ -449,7 +445,7 @@ export default function ManualBooking() {
                 });
             });
             push(LF);
-            println(padRight('  Subtotal:', 24) + padLeft(`P${expenseSubtotal.toFixed(2)}`, 8));
+            println(padRight('  Subtotal:', 18) + padLeft(`P${expenseSubtotal.toFixed(2)}`, 5));
         } else {
             println('  No expenses');
         }
@@ -457,7 +453,6 @@ export default function ManualBooking() {
         push(LF);
         println('--------------------------------');
 
-        // ── Summary ──────────────────────────────────────────────
         const bTotal = bClassGroup
             .flatMap(g => g.passenger)
             .reduce((s, p) => s + Number(p.total_amount), 0);
@@ -523,9 +518,9 @@ export default function ManualBooking() {
     }, [stationID, totalBookings, connectedDevice, trips, bottomSheetTripID, buildReportPrintBytes]);
 
     const handleFetchStationID = useCallback(async () => {
-        if (stationID) return;
         const storedStationID = await AsyncStorage.getItem('stationID');
         if (!storedStationID) return;
+        
         setStationId(Number(storedStationID));
     }, []);
 
@@ -653,6 +648,7 @@ export default function ManualBooking() {
     const handleSaveTrip = useCallback(async (vesselName: string, trip_id: number, routeId: number, origin: string, destination: string, mobileCode: string, code: string, web_code: string, departureTime: string, vesselID: number, cargoable: number, departureDate: string) => {
         setLoading(true);
         const stationID = await AsyncStorage.getItem('stationID');
+
         if (!stationID) {
             setLoading(false);
             Alert.alert('Invalid', 'Station is not set yet.');
@@ -699,7 +695,7 @@ export default function ManualBooking() {
     const handleFetchTotalBookings = async (trip_id: number | null) => {
         try {
             const totalBookingFetch = await FetchTotalBookings(trip_id);
-            console.log('Total Booking Fetch Response:', trip_id);
+
             if (!totalBookingFetch.error) {
                 const totalBookingFetchData: TotalBookingProps[] = totalBookingFetch.data.map((t: any) => ({
                     station: t.station,

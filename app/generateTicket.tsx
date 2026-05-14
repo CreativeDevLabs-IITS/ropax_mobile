@@ -694,8 +694,8 @@ export default function TicketGenerator() {
                                                 </>
                                             )}
                                             {passengers.map((p, passIndex) => 
-                                                p.hasInfant && p.infant?.map((i, index) => (
-                                                    <View key={`${passIndex}-${index}`} style={{ marginBottom: 3 }}>
+                                                p.hasInfant && p.infant?.map((i, infIndex) => (
+                                                    <View key={`${passIndex}${infIndex}`} style={{ marginBottom: 3 }}>
                                                         <View style={{ flexDirection: 'column' }}>
                                                             <Text style={{ fontSize: 13, width: '40%', color: '#000' }}>{`Name: ${i.name?.split(',')[1]?.trim()} ${i.name?.split(',')[0]}`}</Text>
                                                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -714,8 +714,8 @@ export default function TicketGenerator() {
                                             <View style={{ width: '100%', flexDirection: 'column' }}>
                                                 <Text style={{ fontSize: 14, fontWeight: '900', flexDirection: 'column', color: '#000' }}>Cargo</Text>
                                                 {passengers.flatMap(p => p.hasCargo ? 
-                                                    p.cargo.map(c => (
-                                                        <View key={`${c?.id}-${c.cargoBrand}`} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                    p.cargo.map((c, cargoIndex) => (
+                                                        <View key={cargoIndex} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                                                             <View style={{ flexDirection: 'row', gap: 3 }}>
                                                                 <Text style={{ fontSize: 13, color: '#4b4b4bff' }}>{`${c.quantity}x`}</Text>
                                                                 <Text style={{ fontSize: 13, color: '#4b4b4bff' }}>
@@ -738,8 +738,8 @@ export default function TicketGenerator() {
                                 <View style={{ borderBottomColor: '#9B9B9B', borderBottomWidth: 1, paddingVertical: 10 }}>
                                     <View style={{ width: '100%', flexDirection: 'column' }}>
                                         <Text style={{ fontSize: 14, fontWeight: '900', flexDirection: 'column', color: '#000' }}>Cargo</Text>
-                                        {paxCargoProperty.map((cargo: any) => (
-                                            <View key={`${cargo?.id}-${cargo.cargoBrand}`} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 15, }}>
+                                        {paxCargoProperty.map((cargo: any, cargoIndex: number) => (
+                                            <View key={cargoIndex} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 15, }}>
                                                 <View style={{ flexDirection: 'row', gap: 3 }}>
                                                     <Text style={{ fontSize: 12, color: '#4b4b4bff' }}>{`${cargo.quantity}x`}</Text>
                                                     <Text style={{ fontSize: 12, color: '#4b4b4bff' }}>

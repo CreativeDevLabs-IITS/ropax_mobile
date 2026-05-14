@@ -22,7 +22,7 @@ type UserProp = {
     stationColor: string;
 }
 
-type StationProps = {
+export type StationProps = {
     id: number;
     name: string;
 }

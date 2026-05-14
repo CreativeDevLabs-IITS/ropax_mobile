@@ -80,7 +80,11 @@ export default function SeatPlan() {
         [passengers, hasSeat]
     );
 
-    const sheetIndex = passengers.length > 0 && passengers.some(p => p.passType !== 'Passes') ? 0 : -1;
+    const sheetIndex = useMemo(
+        () => passengers.length > 0 && passengers.some(p => p.passType !== 'Passes') ? 0 : -1,
+        [passengers]
+    );
+    
 
     const handleSeatSelect = useCallback(() => {
         if (passengers.length === 0 || passengers.every(p => p.passType === 'Passes')) return;
@@ -126,6 +130,15 @@ export default function SeatPlan() {
         });
     }, [errorForm, id]);
 
+    const handleSeatSelectRef = useRef(handleSeatSelect);
+    useEffect(() => {
+        handleSeatSelectRef.current = handleSeatSelect;
+    }, [handleSeatSelect]);
+
+    const stableHandleSeatSelect = useCallback(() => {
+        handleSeatSelectRef.current();
+    }, []);
+
     const handleCreatePasses = useCallback(() => {
         const temp = Crypto.randomUUID();
         setPassengers([{
@@ -150,37 +163,10 @@ export default function SeatPlan() {
         []
     );
 
-    const fetchDependencies = async () => {
-        try {
-            const [accommodationTypes, totalBookingsCount] = await Promise.all([
-                FetchAccommodations(),
-                FetchTotalBookings(id),
-            ]);
-
-            if (!accommodationTypes.error) {
-                const accomms: AccomsProps[] = accommodationTypes.data.map((a: any) => ({
-                    id: a?.id,
-                    name: a.name,
-                    code: a.code,
-                }));
-                setAccommodations(accomms);
-            }
-
-            if (!totalBookingsCount.error) {
-                setTotalBookings(totalBookingsCount.total_paying);
-            }
-        } catch (error: any) {
-            Alert.alert(
-                'Error',
-                error.message || 'Failed to fetch. Check your internet connection and try again.'
-            );
-        }
-    };
-
     const vesselComponent = useMemo(() => {
         const vesselLower = vessel.toLowerCase();
         const sharedProps = {
-            onSeatSelect: handleSeatSelect,
+            onSeatSelect: stableHandleSeatSelect,
             accommodations,
             seatAvailability: setHasAvailableSeat,
             setParentLoading: setIsLoading,
@@ -193,12 +179,48 @@ export default function SeatPlan() {
             return <L1Vessel {...sharedProps} />;
         }
         return <L2Vessel {...sharedProps} />;
-    }, [vessel, handleSeatSelect, accommodations]);
+    }, [vessel, accommodations]);
 
     useEffect(() => {
+        let isMounted = true;
+        const controller = new AbortController();
+
+        const fetchDependencies = async () => {
+            try {
+                const [accommodationTypes, totalBookingsCount] = await Promise.all([
+                    FetchAccommodations(),
+                    FetchTotalBookings(id),
+                ]);
+
+                if(!isMounted) return;
+
+                if (!accommodationTypes.error) {
+                    const accomms: AccomsProps[] = accommodationTypes.data.map((a: any) => ({
+                        id: a?.id,
+                        name: a.name,
+                        code: a.code,
+                    }));
+                    setAccommodations(accomms);
+                }
+
+                if (!totalBookingsCount.error) {
+                    setTotalBookings(totalBookingsCount.total_paying);
+                }
+            } catch (error: any) {
+                Alert.alert(
+                    'Error',
+                    error.message || 'Failed to fetch. Check your internet connection and try again.'
+                );
+            }
+        };
+
         fetchDependencies();
         const date = new Date();
         setYear(date.getFullYear().toString().slice(-2));
+
+        return () => {
+            isMounted = false;
+        }
     }, []);
 
     return (
@@ -350,7 +372,7 @@ export default function SeatPlan() {
                     </View>
 
                     <TouchableOpacity
-                        onPress={() => router.push('/bookingForm')}
+                        onPress={() => router.replace('/bookingForm')}
                         disabled={hasEmptySeat}
                         style={[
                             styles.continueBtn,

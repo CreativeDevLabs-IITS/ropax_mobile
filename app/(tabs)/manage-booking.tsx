@@ -1,11 +1,13 @@
 import { FetchManageBookingList } from "@/api/manageBookingList";
+import { FetchStation } from "@/api/station";
 import PreLoader from "@/components/preloader";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
-import { Alert, FlatList, Modal, RefreshControl, Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { Alert, FlatList, Modal, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Calendar } from "react-native-calendars";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StationProps } from "./settings";
 
 type PaxBookingProps = {
     id: number;
@@ -19,7 +21,9 @@ type PaxBookingProps = {
     bookingId?: number;
     paxType: string;
     station?: string;
+    accommodation?: string;
 }
+
 
 export const bookingStatuses = [
     { id: 0, label: 'Pending', color: '#ffc107', bgColor: 'rgba(255, 193, 7, 0.15)', icon: 'clock-time-eight' },
@@ -40,7 +44,7 @@ const PassengerItem = React.memo(({ paxDatas }: { paxDatas: PaxBookingProps }) =
             <View style={{ borderBottomColor: '#dadadaff', borderBottomWidth: 1, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 5, paddingBottom: 8 }}>
                 <Text style={{ fontWeight: 'bold', fontSize: 17, width: '50%', color: '#000' }}>{paxDatas?.name}</Text>
                 <View style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
-                    <Text style={{ alignSelf: 'flex-end', fontSize: 10, color: '#646464' }}>{paxDatas.departureDate}</Text>
+                    <Text style={{ alignSelf: 'flex-end', fontSize: 10, color: '#505050', fontWeight: '600' }}>{paxDatas.accommodation}</Text>
                     <Text style={{ fontSize: 12, color: '#cf2a3a', fontWeight: 'bold' }}>{paxDatas.referenceNumber}</Text>
                 </View>
             </View>
@@ -63,8 +67,15 @@ export default function ManageBooking() {
     const [date, setDate] = useState('');
     const [formattedDate, setFormattedDate] = useState('');
     const [searchValue, setSearchValue] = useState('');
+    const [stations, setStations] = useState<StationProps[]>([]);
+    const [filteredStation, setFilteredStation] = useState<number | null>(null);
     
     const PassengerLists = passengers.filter((p: any) => p.paxType != 'Infant');
+
+    const memoisedStations = useMemo(
+        () => stations.filter(s => s.name.toLowerCase().trim() != 'online booking')
+        ,[stations]
+    )
 
     useFocusEffect(
         useCallback(() => {
@@ -78,6 +89,7 @@ export default function ManageBooking() {
             
             const PHTimezoneToday = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
     
+            setFilteredStation(null);
             setDate(PHTimezoneToday);
             setLoading(true)
             fetchBooking(PHTimezoneToday, null);
@@ -91,22 +103,40 @@ export default function ManageBooking() {
             const currentDate = new Date();
             const today = currentDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
     
-            if(today == date && searchValue.length == 0) {
+            if(today == date && searchValue.length == 0 && filteredStation == null) {
                 setLoading(true)
                 const requestInterval = setInterval(() => fetchBooking(today, null), 3000);
                 return () => clearInterval(requestInterval);
             }
     
-        }, [date, searchValue])
+        }, [date, searchValue, filteredStation])
     )
 
+    const handleStationFilter = useCallback((stationId: number | null) => {
+        setLoading(true);
+        setFilteredStation(stationId);
+        fetchBooking(date, searchValue, stationId);
+    }, [stations, date, searchValue]);
+
     
-    const fetchBooking = async (dateString: string, search: string | null) => {
+    const fetchBooking = async (dateString: string, search: string | null, stationId?: number | null) => {
         try {
-            const response = await FetchManageBookingList(dateString, search)
+            const [fetchedStation, fetchedBookings] = await Promise.all([
+                FetchStation(),
+                FetchManageBookingList(dateString, search, stationId)
+            ])
+
+            if(!fetchedStation.error) {
+                const stations: StationProps[] = fetchedStation.stations.map((station: any) => ({
+                    id: station.id,
+                    name: station.name
+                }))
+
+                setStations(stations);
+            }
             
-            if(!response.error) {
-                const paxData: PaxBookingProps[] = response.data.map((passenger: any) => ({
+            if(!fetchedBookings.error) {
+                const paxData: PaxBookingProps[] = fetchedBookings.data.map((passenger: any) => ({
                     id: passenger.id,
                     name: `${passenger.first_name} ${passenger.last_name}`,
                     departureDate: new Date(passenger.bookings.find((c: any) => c.trip_schedule).trip_schedule.specific_days).toLocaleDateString('en-US', {
@@ -127,6 +157,7 @@ export default function ManageBooking() {
                     bookingId: passenger.bookings.find((booking: any) => booking.id)?.id,
                     paxType: passenger.passenger_type?.name,
                     station: passenger.bookings.find((s: any) => s.station)?.station.name,
+                    accommodation: passenger?.accommodation_type[0]?.name ?? 'No Accommodation'
                 }))
                 setPassengers(paxData)
             }
@@ -148,9 +179,9 @@ export default function ManageBooking() {
             timeZone: 'Asia/Manila'
         }
 
-        setFormattedDate(selectedDate.toLocaleDateString('en-US', options))
-        fetchBooking(selectedDate.toISOString().split('T')[0], null),
         setLoading(true);
+        setFormattedDate(selectedDate.toLocaleDateString('en-US', options))
+        fetchBooking(selectedDate.toISOString().split('T')[0], null)
     }
 
     const handleFilter = (search: string) => {
@@ -173,6 +204,7 @@ export default function ManageBooking() {
 
         setLoading(true)
         fetchBooking(PHTimezone, null)
+        setFilteredStation(null)
         setDate(PHTimezone),
         setFormattedDate(today.toLocaleDateString('en-US', options))
     }
@@ -200,7 +232,7 @@ export default function ManageBooking() {
                 </Modal>
             )}
 
-            <View style={{ paddingTop: 50, height: 150, backgroundColor: '#cf2a3a', paddingHorizontal: 20, gap: 15 }}>
+            <View style={{ paddingTop: 50, paddingBottom: 10, backgroundColor: '#cf2a3a', paddingHorizontal: 20, gap: 15 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>Manage Bookings</Text>
                     <TouchableOpacity onPress={() => setCalendarVisible(true)}>
@@ -219,34 +251,56 @@ export default function ManageBooking() {
                         </TouchableOpacity>
                     </View>
                 </View>
+                <View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{ fontWeight: '600', fontSize: 16, color: '#eeeeee' }}>Stations</Text>
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', alignItems: 'center',paddingVertical: 5, gap: 6 }} style={{ marginTop: 5 }}>
+                        <TouchableOpacity style={{ width: 75, borderWidth: 1, borderColor: filteredStation == null ? 'transparent' : '#eeeeee', borderRadius: 5, paddingHorizontal: 8, paddingVertical: 7, backgroundColor: filteredStation == null ? '#FFC107' : 'transparent' }}
+                            onPress={() => handleStationFilter(null)}>
+                            <Text style={{ fontSize: 14, textAlign: 'center', color: filteredStation == null ? '#000' : '#eeeeee' }}>All</Text>
+                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                            {memoisedStations.map(station => (
+                                <TouchableOpacity style={{ width: 75, borderWidth: 1, borderColor: filteredStation == station.id ? 'transparent' : '#eeeeee', borderRadius: 5, paddingHorizontal: 8, paddingVertical: 2, backgroundColor: filteredStation == station.id ? '#FFC107' : 'transparent' }} 
+                                    key={station.id} 
+                                    onPress={() => handleStationFilter(station.id)}>
+                                        <Text style={{ fontSize: 12, textAlign: 'center', color: filteredStation == station.id ? '#000' : '#eeeeee' }}>{station.name}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </ScrollView>
+                </View>
             </View>
 
-            <View style={{ justifyContent: 'center', paddingTop: 20, paddingHorizontal: 20, flex: 1 }}>
+            <View style={{ paddingTop: 20, paddingHorizontal: 20, flex: 1 }}>
                 {loading == true ? (
                     <PreLoader loading={loading} />
                 ) : (
                     <>
-                        {passengers.length > 0 ? (
-                            <>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                                    <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#000' }}>Bookings</Text>
-                                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#000' }}>{formattedDate}</Text>
-                                </View>
-                                <FlatList data={[...PassengerLists].reverse()} keyExtractor={(passengers) => String(passengers.id)} showsVerticalScrollIndicator={false}
-                                    refreshControl={<RefreshControl refreshing={loading} onRefresh={() => handleRefresh()} colors={['#cf2a3a']} />}
-                                    renderItem={({ item: passengerDatas }) => <PassengerItem paxDatas={passengerDatas}/>}
-                                    getItemLayout={(passengerDatas, index) => ({
-                                        length: 90,
-                                        offset: 90 * index,
-                                        index
-                                    })}
-                                />
-                            </>
-                        ) : (
-                            <>
-                                <Text style={{ textAlign: 'center', color: '#7A7A85', top: -50 }}>No bookings found</Text>
-                            </>
-                        )}
+                        <View style={{ justifyContent: 'center', flex: 1 }}>
+                            {passengers.length > 0 ? (
+                                <>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                                        <Text style={{ fontWeight: 'bold', fontSize: 18, color: '#000' }}>Bookings</Text>
+                                        <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#000' }}>{formattedDate}</Text>
+                                    </View>
+                                    <FlatList data={[...PassengerLists].reverse()} keyExtractor={(passengers) => String(passengers.id)} showsVerticalScrollIndicator={false}
+                                        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => handleRefresh()} colors={['#cf2a3a']} />}
+                                        renderItem={({ item: passengerDatas }) => <PassengerItem paxDatas={passengerDatas}/>}
+                                        getItemLayout={(passengerDatas, index) => ({
+                                            length: 90,
+                                            offset: 90 * index,
+                                            index
+                                        })}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <Text style={{ textAlign: 'center', color: '#7A7A85', top: -50 }}>No bookings found</Text>
+                                </>
+                            )}
+                        </View>
                     </>
                 )}
             </View>

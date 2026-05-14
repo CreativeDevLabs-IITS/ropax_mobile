@@ -560,8 +560,10 @@ export default function Forms({ errorForm }: FormProps) {
     const [passengerType, setPassengerType] = useState<PassTypeProps[] | null>(null);
     const [paxFares, setPaxFares] = useState<PaxFareProps[] | null>(null);
     const [paxlists, setPaxLists] = useState<PaxListProps[]>([]);
+
     const [suggestions, setSuggestions] = useState<{ [key: string]: any[] }>({});
     const [infantSuggestions, setInfantSuggestions] = useState<{ [key: string]: any[] }>({});
+    const prevFareRef = useRef<number>(0);
 
     const dropdownController = useRef<{ [key: string]: any }>({});
     const initializedRefs = useRef<{ [key: string]: boolean }>({});
@@ -615,18 +617,19 @@ export default function Forms({ errorForm }: FormProps) {
     [passengerType]);
 
     const handleOnSearch = useCallback((text: string, paxId: string | number) => {
-        const paxsSuggestions = formattedPaxList.filter(p =>
+        const filtered = formattedPaxList.filter(p =>
             p.title.toLowerCase().includes(text.toLowerCase())
         );
-        setSuggestions(prev => ({ ...prev, [paxId]: paxsSuggestions }));
+        setSuggestions(prev => ({ ...prev, [paxId]: filtered }));
     }, [formattedPaxList]);
 
     const handleOnInfantSearch = useCallback((text: string, paxId: string | number) => {
-        const paxsSuggestions = formattedInfantList.filter(p =>
+        const filtered = formattedInfantList.filter(p =>
             p.title.toLowerCase().includes(text.toLowerCase())
         );
-        setInfantSuggestions(prev => ({ ...prev, [paxId]: paxsSuggestions }));
+        setInfantSuggestions(prev => ({ ...prev, [paxId]: filtered }));
     }, [formattedInfantList]);
+
 
     const handleOnAutoComplete = useCallback((itemId: string, targetPaxId: string | number, targetAccomId: number) => {
         const paxOnList = paxlists.find(p => p.id == itemId);
@@ -740,7 +743,6 @@ export default function Forms({ errorForm }: FormProps) {
         );
     }, [setPassengers]);
 
-    // Total fare derived directly from passenger fares + typed cargo amounts
     const computedFare = useMemo(() => {
         return passengers.reduce((sum, p) => {
             const passengerFare = Number(p.fare || 0);
@@ -752,7 +754,10 @@ export default function Forms({ errorForm }: FormProps) {
     }, [passengers]);
 
     useEffect(() => {
-        setTotalFare(computedFare);
+        if (prevFareRef.current !== computedFare) {
+            prevFareRef.current = computedFare;
+            setTotalFare(computedFare);
+        }
     }, [computedFare]);
 
     const hasInfantChecker = useCallback((paxId: number | string, type_id: number) => {
@@ -908,6 +913,33 @@ export default function Forms({ errorForm }: FormProps) {
 
         paxTypeAndLists();
     }, []);
+
+
+    useEffect(() => {
+        const currentIds = new Set(passengers.map(p => String(p.id)));
+
+        Object.keys(dropdownController.current).forEach(key => {
+            if (!currentIds.has(key)) {
+                delete dropdownController.current[key];
+                delete initializedRefs.current[key];
+            }
+        });
+
+        Object.keys(InfantDropController.current).forEach(key => {
+            const paxId = key.split('-')[0];
+            if (!currentIds.has(paxId)) {
+                delete InfantDropController.current[key];
+                delete initializedInfantRefs.current[key];
+            }
+        });
+
+        setSuggestions(prev => {
+            const next = { ...prev };
+            Object.keys(next).forEach(k => { if (!currentIds.has(k)) delete next[k]; });
+            return next;
+        });
+    }, [passengers]);
+
 
     return (
         <View>

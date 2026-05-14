@@ -258,11 +258,15 @@ const SRVessel = ({ onSeatSelect, accommodations, seatAvailability, setParentLoa
         }
 
         fetchBookingsAndDisabledSeats();
-    }, [disabledSeats])
+    }, [])
     
     useEffect(() => {
+        let isMounted = true;
         const channel = async () => {
             const { data } = await supabase.from('seats_selections').select('*').eq('trip_id', id);
+            
+            if (!isMounted) return;
+
             const selectedSeats = data?.map((d: any) => d.seat_number);
             
             setSeatSelectionChannel(selectedSeats || []);

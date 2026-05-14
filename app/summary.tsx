@@ -215,7 +215,7 @@ export default function PaymentSummary() {
         <View style={{ flexDirection: 'column', justifyContent: 'space-between', backgroundColor: '#fafafa', flex: 1, paddingBottom: insets.bottom }}>
             <View style={{ flex: 1, marginBottom: 10 }}>
                 <View style={{ height: 100, backgroundColor: '#cf2a3a', paddingTop: 40, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 15 }}>
-                    <TouchableOpacity onPress={() => router.back()} >
+                    <TouchableOpacity onPress={() => router.replace('/bookingForm')} >
                         <Ionicons name='arrow-back' size={28} color={'#fff'} />
                     </TouchableOpacity>
                     <Text style={{ fontSize: 18, color: '#fff', fontWeight: 'bold', textAlign: 'center' }}>Payment Summary</Text>
